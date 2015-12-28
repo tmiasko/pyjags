@@ -1,37 +1,43 @@
-#!/usr/bin/env python3
+__all__ = ['Model', 'load_module', 'unload_module']
 
-import ctypes
-import pyjags
-import pyjags.console
-import numpy as np
-import pprint
-import tempfile
+from .console import Console
+
 import contextlib
+import ctypes
+import os
+import os.path
+import tempfile
 
-_loaded_modules = {}
-#Special float value indicating missing data in JAGS.
-JAGS_NA = pyjags.console.Console.na()
+import numpy as np
+
+# TODO determine package dir using pkg-config
+JAGS_MODULE_DIR = '/usr/lib/JAGS/modules-3'
+JAGS_MODULE_EXT = '.so' if os.name == 'posix' else '.dll'
+JAGS_MODULES = {}
+# Special value indicating missing data in JAGS.
+JAGS_NA = Console.na()
+
 
 def load_module(name):
-    if not name in _loaded_modules:
-        path = '/usr/lib/JAGS/modules-3/{}.so'.format(name)
-        module = ctypes.cdll.LoadLibrary(path)
-        _loaded_modules[name] = module
-    pyjags.console.Console.loadModule(name)
+    """Load JAGS module."""
+    if name not in JAGS_MODULES:
+        path = os.path.join(JAGS_MODULE_DIR, name + JAGS_MODULE_EXT)
+        lib = ctypes.cdll.LoadLibrary(path)
+        JAGS_MODULES[name] = lib
+    Console.loadModule(name)
+
 
 def unload_module(name):
-    pyjags.console.Console.unloadModule(name)
+    """Unload JAGS module."""
+    return Console.unloadModule(name)
 
-load_module('basemod')
-load_module('bugs')
 
 def _to_numpy_array(src):
-    """
-    """
+    # TODO
     d = {}
     for k, v in src.items():
         # Avoid 0-dimensional arrays. They would require special handling in C code.
-        v = np.array(v, ndmin=1)
+        v = np.atleast_1d(v)
         # JAGS SArray does not support empty arrays.
         if not np.size(v):
             continue
@@ -39,6 +45,7 @@ def _to_numpy_array(src):
         v = np.ma.filled(v, JAGS_NA)
         d[k] = v
     return d
+
 
 @contextlib.contextmanager
 def _get_model_path(name, text):
@@ -49,6 +56,7 @@ def _get_model_path(name, text):
             fh.write(text)
             fh.flush()
             yield fh.name
+
 
 class Model:
     """
@@ -79,7 +87,7 @@ class Model:
         if name is None == text is None:
             raise ValueError('Either model name or model text must be provided.')
 
-        self.console = pyjags.console.Console()
+        self.console = Console()
         with _get_model_path(name, text) as path:
             self.console.checkModel(path)
 
@@ -132,8 +140,8 @@ class Model:
         return samples
 
     def adapt(self, iterations):
-        """Run adaptation steps to maximize samplers efficiency. 
-        
+        """Run adaptation steps to maximize samplers efficiency.
+
         Returns
         -------
         adapt : bool
@@ -160,13 +168,3 @@ class Model:
         """List of chains."""
         return list(range(1, self.console.nchain()+1))
 
-model = Model(
-    name='model.jags',
-    data={'x':[[1,0,1],[1,1,1]]},
-    start={
-        '.RNG.name': 'base::Wichmann-Hill',
-        '.RNG.seed': 1
-    },
-    chains=1)
-samples = model.sample(model.variables, 100)
-x = samples['x']

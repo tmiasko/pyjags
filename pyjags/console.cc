@@ -273,7 +273,7 @@ public:
 }
 
 PYBIND11_PLUGIN(console) {
-  py::module module("console", "foo bar baz");
+  py::module module("console", "TODO");
 
   import_array();
 
