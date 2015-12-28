@@ -179,14 +179,12 @@ public:
     invoke([&] { return console_.clearMonitor(name, Range(), type); });
   }
 
-  py::tuple dumpState(DumpType type, unsigned int chain) {
+  py::dict dumpState(DumpType type, unsigned int chain) {
     std::map<std::string, SArray> data;
     std::string rng_name;
     invoke([&] { return console_.dumpState(data, rng_name, type, chain); });
-    // TODO add rng name as .RNG.name
-    py::tuple result(2);
-    result[0] = to_python(data);
-    result[1] = py::cast(rng_name);
+    py::dict result = to_python(data);
+    result[".RNG.name"] = py::cast(rng_name);
     return result;
   }
 
