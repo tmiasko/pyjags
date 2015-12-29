@@ -165,7 +165,7 @@ public:
 
   void update(unsigned int iterations) {
     invoke([&] {
-      // TODO GIL
+      py::gil_scoped_release release;
       return console_.update(iterations);
     });
   }
