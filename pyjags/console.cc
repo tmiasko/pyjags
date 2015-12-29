@@ -271,7 +271,7 @@ public:
 }
 
 PYBIND11_PLUGIN(console) {
-  py::module module("console", "TODO");
+  py::module module("console");
 
   import_array();
 
@@ -299,7 +299,8 @@ PYBIND11_PLUGIN(console) {
       .value("RNG_FACTORY", RNG_FACTORY)
       .export_values();
 
-  py::class_<JagsConsole>(module, "Console")
+  py::class_<JagsConsole>(module, "Console",
+                          "Wrapper around JAGS Console class")
       .def(py::init<>())
       .def("checkModel", &JagsConsole::checkModel, py::arg("path"),
            "Load the model from a file and checks its syntactic correctness.")
@@ -350,7 +351,7 @@ PYBIND11_PLUGIN(console) {
       .def_static("setFactoryActive", &JagsConsole::setFactoryActive,
                   py::arg("name"), py::arg("type"), py::arg("active"),
                   "Sets a factory to be active or inactive")
-      .def_static("na", &JagsConsole::na, "TODO");
+      .def_static("na", &JagsConsole::na, "Return value of JAGS_NA.");
 
   return module.ptr();
 }
