@@ -5,13 +5,18 @@ import numpy as np
 
 class TestModel(unittest.TestCase):
 
+    def test_model_as_text(self):
+        # No exceptions should be thrown.
+        pyjags.Model(text='model { y ~ dbern(1) }')
+        pyjags.Model(text=b'model { y ~ dbern(1) }')
+
     def test_default_modules(self):
         self.assertEqual(
             ['basemod', 'bugs'],
             pyjags.list_modules())
 
     def test_sample_with_rng_seed_is_deterministic(self):
-        model_string = b'''
+        model_string = '''
         model {
             x ~ dbern(0.5)
         }
@@ -33,7 +38,7 @@ class TestModel(unittest.TestCase):
             'base::Mersenne-Twister',
             'base::Wichmann-Hill',
         ]
-        model = b'model { x ~ dbern(0.5) }'
+        model = 'model { x ~ dbern(0.5) }'
         start = [{'.RNG.name': name, '.RNG.seed': 0} for name in expected_names]
         chains = len(start)
         m = pyjags.Model(text=model, start=start, chains=chains, tune=10)
@@ -41,7 +46,7 @@ class TestModel(unittest.TestCase):
         self.assertEqual(expected_names, actual_names)
 
     def test_masked_array(self):
-        model = b'''
+        model = '''
         model {
             for (i in 1:length(x)) {
                 x[i] ~ dbern(0.5)

@@ -5,6 +5,7 @@ from .console import *
 import collections
 import contextlib
 import ctypes
+import locale
 import os
 import os.path
 import tempfile
@@ -69,6 +70,8 @@ def _get_model_path(name, text):
     if name:
         yield name
     elif text:
+        if isinstance(text, str):
+            text = text.encode()
         with tempfile.NamedTemporaryFile() as fh:
             fh.write(text)
             fh.flush()
