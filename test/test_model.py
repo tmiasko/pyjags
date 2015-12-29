@@ -1,3 +1,4 @@
+import os.path
 import unittest
 import pyjags
 import numpy as np
@@ -5,10 +6,19 @@ import numpy as np
 
 class TestModel(unittest.TestCase):
 
-    def test_model_as_text(self):
+    def test_model_from_string(self):
         # No exceptions should be thrown.
         pyjags.Model(text='model { y ~ dbern(1) }')
         pyjags.Model(text=b'model { y ~ dbern(1) }')
+
+    def test_model_from_file(self):
+        path = os.path.dirname(__file__)
+        path = os.path.join(path, 'model.jags')
+        pyjags.Model(name=path)
+
+    def test_model_is_required(self):
+        with self.assertRaises(ValueError):
+            pyjags.Model()
 
     def test_default_modules(self):
         self.assertEqual(
@@ -45,7 +55,22 @@ class TestModel(unittest.TestCase):
         actual_names = [v for chain_state in m.state for k, v in chain_state.items() if k == '.RNG.name']
         self.assertEqual(expected_names, actual_names)
 
-    def test_masked_array(self):
+    def test_empty_array(self):
+        # This used to throw an exception.
+        model = 'model { x ~ dbern(1) }'
+        pyjags.Model(text=model, data={'x': []})
+
+    def test_invalid_length_of_initial_value_list_throws_exception(self):
+        model = 'model { x ~ dbern(1) }'
+        with self.assertRaises(ValueError):
+            pyjags.Model(text=model, chains=2, start=[{'x': 1}])
+
+    def test_invalid_type_of_intial_value_list(self):
+        model = 'model { x ~ dbern(1) }'
+        with self.assertRaises(ValueError):
+            pyjags.Model(text=model, chains=2, start=1234)
+
+    def test_missing_data(self):
         model = '''
         model {
             for (i in 1:length(x)) {
@@ -56,7 +81,7 @@ class TestModel(unittest.TestCase):
         data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
         m = pyjags.Model(text=model, data=data)
         n = 10
-        s = m.sample(n)
+        s = m.sample(n, vars=['x'])
 
         x1 = s['x'][0,:,:]
         x2 = s['x'][1,:,:]
@@ -68,3 +93,12 @@ class TestModel(unittest.TestCase):
         # Missing value, samples should vary between 0 and 1
         self.assertIn(0, x3)
         self.assertIn(1, x3)
+
+    def test_unused_variables_throws_exception(self):
+        model = 'model { x ~ dbern(0.5) }'
+
+        with self.assertRaises(ValueError):
+            pyjags.Model(text=model, data={'x': 1, 'y': 2})
+
+        with self.assertRaises(ValueError):
+            pyjags.Model(text=model, start={'x': 1, 'y': 2})

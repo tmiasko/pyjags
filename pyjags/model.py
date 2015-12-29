@@ -76,6 +76,8 @@ def _get_model_path(name, text):
             fh.write(text)
             fh.flush()
             yield fh.name
+    else:
+        raise ValueError('Either model name or model text must be provided.')
 
 
 class Model:
@@ -106,9 +108,6 @@ class Model:
         tune : int, optional
             Number of adaptations steps.
         """
-
-        if name is None == text is None:
-            raise ValueError('Either model name or model text must be provided.')
 
         chains = int(chains)
         tune = int(tune)
