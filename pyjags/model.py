@@ -81,9 +81,6 @@ def _get_model_path(name, text):
 
 
 class Model:
-    """
-    TODO
-    """
 
     def __init__(self, name=None, text=None, data=None, start=None, chains=1, tune=1000):
         """
@@ -145,6 +142,7 @@ class Model:
             self.adapt(tune)
 
     def update(self, iterations):
+        """Updates the model for given number of iterations."""
         # TODO progress bar?
         self.console.update(iterations)
 
@@ -152,24 +150,25 @@ class Model:
         """
         Parameters
         ----------
-        vars : list of variables
         iterations : int
-        thin : int
-
+            Number of iterations.
+        vars : list of variables, optional
+            List of variables to monitor.
+        thin : int, optional
+            Thinning interval, i.e., every thin iteration will be recorded.
         Returns
         -------
-
         """
-
-        # Enable variable monitoring
         if vars is None:
             vars = self.variables
-        for name in vars:
-            self.console.setMonitor(name, thin, monitor_type)
-        self.update(iterations)
-        samples = self.console.dumpMonitors(monitor_type, False)
-        for name in vars:
-            self.console.clearMonitor(name, monitor_type)
+        try:
+            for name in vars:
+                self.console.setMonitor(name, thin, monitor_type)
+            self.update(iterations)
+            samples = self.console.dumpMonitors(monitor_type, False)
+        finally:
+            for name in vars:
+                self.console.clearMonitor(name, monitor_type)
         return samples
 
     def adapt(self, iterations):
