@@ -42,7 +42,7 @@ public:
 };
 
 // Exception object used to report errors. Created during module initialization.
-py::object JagsException;
+py::object JagsError;
 
 // Converts numpy array to JAGS SArray.
 SArray to_jags(py::object src) {
@@ -129,7 +129,7 @@ class JagsConsole {
     bool success = f();
     // Reports error when f returned false or written something to error stream.
     if (!success || err_stream_.rdbuf()->in_avail()) {
-      PyErr_SetString(JagsException.ptr(), err_stream_.str().c_str());
+      PyErr_SetString(JagsError.ptr(), err_stream_.str().c_str());
       throw py::error_already_set();
     }
   }
@@ -140,7 +140,7 @@ public:
   void checkModel(const std::string &path) {
     file_handle fh(fopen(path.c_str(), "rb"));
     if (!fh) {
-      PyErr_SetFromErrnoWithFilename(JagsException.ptr(), path.c_str());
+      PyErr_SetFromErrnoWithFilename(JagsError.ptr(), path.c_str());
       throw py::error_already_set();
     }
     invoke([&] { return console_.checkModel(fh.file()); });
@@ -232,7 +232,7 @@ public:
 
   static void loadModule(const std::string &name) {
     if (!Console::loadModule(name)) {
-      PyErr_Format(JagsException.ptr(), "Error loading module: %s",
+      PyErr_Format(JagsError.ptr(), "Error loading module: %s",
                    name.c_str());
       throw py::error_already_set();
     }
@@ -240,7 +240,7 @@ public:
 
   static void unloadModule(const std::string &name) {
     if (!Console::unloadModule(name)) {
-      PyErr_Format(JagsException.ptr(), "Error unloading module: %s",
+      PyErr_Format(JagsError.ptr(), "Error unloading module: %s",
                    name.c_str());
       throw py::error_already_set();
     }
@@ -258,7 +258,7 @@ public:
   static void setFactoryActive(const std::string &name, FactoryType type,
                                bool active) {
     if (!Console::setFactoryActive(name, type, active)) {
-      PyErr_Format(JagsException.ptr(),
+      PyErr_Format(JagsError.ptr(),
                    "Error activating / deactivating factory: %s", name.c_str());
       throw py::error_already_set();
     }
@@ -275,13 +275,13 @@ PYBIND11_PLUGIN(console) {
 
   import_array();
 
-  JagsException =
-      py::object(PyErr_NewException("console.JagsException", NULL, NULL), true);
-  if (!JagsException) {
+  JagsError =
+      py::object(PyErr_NewException("console.JagsError", NULL, NULL), true);
+  if (!JagsError) {
     return nullptr;
   }
 
-  if (PyModule_AddObject(module.ptr(), "JagsException", JagsException.ptr())) {
+  if (PyModule_AddObject(module.ptr(), "JagsError", JagsError.ptr())) {
     return nullptr;
   }
 
