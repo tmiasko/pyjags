@@ -11,7 +11,11 @@
 
 namespace py = pybind11;
 
+namespace jags {}
+
 namespace {
+
+using namespace jags;
 
 // RAII style holder for FILE*.
 class file_handle {
@@ -273,7 +277,7 @@ public:
 PYBIND11_PLUGIN(console) {
   py::module module("console");
 
-  import_array();
+  import_array1(nullptr);
 
   JagsError =
       py::object(PyErr_NewException("console.JagsError", NULL, NULL), true);
