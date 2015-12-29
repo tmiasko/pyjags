@@ -40,3 +40,26 @@ class TestModel(unittest.TestCase):
         actual_names = [v for chain_state in m.state for k, v in chain_state.items() if k == '.RNG.name']
         self.assertEqual(expected_names, actual_names)
 
+    def test_masked_array(self):
+        model = b'''
+        model {
+            for (i in 1:length(x)) {
+                x[i] ~ dbern(0.5)
+            }
+        }'''
+
+        data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
+        m = pyjags.Model(text=model, data=data)
+        n = 10
+        s = m.sample(n)
+
+        x1 = s['x'][0,:,:]
+        x2 = s['x'][1,:,:]
+        x3 = s['x'][2,:,:]
+
+        # Observed values, samples should be constant
+        np.testing.assert_equal([0] * n, x1.flatten())
+        np.testing.assert_equal([1] * n, x2.flatten())
+        # Missing value, samples should vary between 0 and 1
+        self.assertIn(0, x3)
+        self.assertIn(1, x3)

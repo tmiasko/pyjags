@@ -44,16 +44,22 @@ load_module('bugs')
 
 
 def _to_numpy_dictionary(src):
-    """Return a dictionary where values are converted into numpy arrays."""
+    """Return a dictionary where values are converted into numpy arrays suitable
+    for use with JAGS.
+
+    * Returned arrays have at least one dimension.
+    * Masked values are replaced by JAGS_NA.
+    * Empty arrays are removed from the dictionary.
+    """
     dst = {}
     for k, v in src.items():
-        # Avoid 0-dimensional arrays. They would require special handling in C code.
-        v = np.atleast_1d(v)
-        # Ignore empty arrays. JAGS SArray does not support them.
+        if np.ma.is_masked(v):
+            v = np.ma.array(data=v, dtype=np.double, ndmin=1, fill_value=JAGS_NA)
+            v = np.ma.filled(v)
+        else:
+            v = np.atleast_1d(v)
         if not np.size(v):
             continue
-        # Convert missing data to JAGS format.
-        v = np.ma.filled(v, JAGS_NA)
         dst[k] = v
     return dst
 
@@ -108,13 +114,13 @@ class Model:
         with _get_model_path(name, text) as path:
             self.console.checkModel(path)
 
-        data = _to_numpy_dictionary(data) if data else {}
+        data = {} if data is None else _to_numpy_dictionary(data)
         unused = set(data.keys()) - set(self.variables)
         if unused:
             raise ValueError('Unused data for variables: {}'.format(','.join(unused)))
         self.console.compile(data, chains, True)
 
-        start = start or {}
+        start = {} if start is None else start
         if isinstance(start, collections.Mapping):
             start = [start] * chains
         elif not isinstance(start, collections.Sequence):
