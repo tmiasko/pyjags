@@ -20,13 +20,13 @@ class TestModel(unittest.TestCase):
 
     def test_model_from_string(self):
         # No exceptions should be thrown.
-        pyjags.Model(text='model { y ~ dbern(1) }')
-        pyjags.Model(text=b'model { y ~ dbern(1) }')
+        pyjags.Model(code='model { y ~ dbern(1) }')
+        pyjags.Model(code=b'model { y ~ dbern(1) }')
 
     def test_model_from_file(self):
         path = os.path.dirname(__file__)
         path = os.path.join(path, 'model.jags')
-        pyjags.Model(name=path)
+        pyjags.Model(file=path)
 
     def test_model_is_required(self):
         with self.assertRaises(ValueError):
@@ -43,13 +43,13 @@ class TestModel(unittest.TestCase):
             x ~ dbern(0.5)
         }
         '''
-        start = {
+        init = {
             '.RNG.name': 'base::Wichmann-Hill',
             '.RNG.seed': 1
         }
         n = 100
-        s1 = pyjags.Model(text=model_string, start=start).sample(n)
-        s2 = pyjags.Model(text=model_string, start=start).sample(n)
+        s1 = pyjags.Model(model_string, init=init).sample(n)
+        s2 = pyjags.Model(model_string, init=init).sample(n)
         np.testing.assert_equal(s1, s2)
 
     def test_rng_name_set_and_get(self):
@@ -61,26 +61,26 @@ class TestModel(unittest.TestCase):
             'base::Wichmann-Hill',
         ]
         model = 'model { x ~ dbern(0.5) }'
-        start = [{'.RNG.name': name, '.RNG.seed': 0} for name in expected_names]
-        chains = len(start)
-        m = pyjags.Model(text=model, start=start, chains=chains, tune=10)
+        init = [{'.RNG.name': name, '.RNG.seed': 0} for name in expected_names]
+        chains = len(init)
+        m = pyjags.Model(model, init=init, chains=chains, tune=10)
         actual_names = [v for chain_state in m.state for k, v in chain_state.items() if k == '.RNG.name']
         self.assertEqual(expected_names, actual_names)
 
     def test_empty_array(self):
         # This used to throw an exception.
         model = 'model { x ~ dbern(1) }'
-        pyjags.Model(text=model, data={'x': []})
+        pyjags.Model(model, data={'x': []})
 
     def test_invalid_length_of_initial_value_list_throws_exception(self):
         model = 'model { x ~ dbern(1) }'
         with self.assertRaises(ValueError):
-            pyjags.Model(text=model, chains=2, start=[{'x': 1}])
+            pyjags.Model(model, chains=2, init=[{'x': 1}])
 
-    def test_invalid_type_of_intial_value_list(self):
+    def test_invalid_type_of_init_value_list(self):
         model = 'model { x ~ dbern(1) }'
         with self.assertRaises(ValueError):
-            pyjags.Model(text=model, chains=2, start=1234)
+            pyjags.Model(model, chains=2, init=1234)
 
     def test_missing_data(self):
         model = '''
@@ -91,7 +91,7 @@ class TestModel(unittest.TestCase):
         }'''
 
         data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
-        m = pyjags.Model(text=model, data=data)
+        m = pyjags.Model(model, data=data, chains=1)
         n = 10
         s = m.sample(n, vars=['x'])
 
@@ -110,7 +110,7 @@ class TestModel(unittest.TestCase):
         model = 'model { x ~ dbern(0.5) }'
 
         with self.assertRaises(ValueError):
-            pyjags.Model(text=model, data={'x': 1, 'y': 2})
+            pyjags.Model(model, data={'x': 1, 'y': 2})
 
         with self.assertRaises(ValueError):
-            pyjags.Model(text=model, start={'x': 1, 'y': 2})
+            pyjags.Model(model, init={'x': 1, 'y': 2})
