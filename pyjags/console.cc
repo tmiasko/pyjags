@@ -316,7 +316,7 @@ PYBIND11_PLUGIN(console) {
       .export_values();
 
   py::class_<JagsConsole>(module, "Console",
-                          "Wrapper around JAGS Console class")
+                          "Low-level wrapper around JAGS Console class.")
       .def(py::init<>())
       .def("checkModel", &JagsConsole::checkModel, py::arg("path"),
            "Load the model from a file and checks its syntactic correctness.")

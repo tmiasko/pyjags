@@ -10,7 +10,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-__all__ = ['Model', 'list_modules', 'load_module', 'unload_module']
+"""
+
+"""
+
+__all__ = ['list_modules', 'load_module', 'unload_module', 'Model']
 
 from .console import *
 
@@ -32,7 +36,10 @@ JAGS_NA = Console.na()
 
 
 def load_module(name):
-    """Load module."""
+    """Load module.
+
+    During initialization pyjags loads basemod module and bugs module.
+    """
     if name not in JAGS_MODULES:
         path = os.path.join(JAGS_MODULE_DIR, name + JAGS_MODULE_EXT)
         lib = ctypes.cdll.LoadLibrary(path)
@@ -59,9 +66,9 @@ def _to_numpy_dictionary(src):
     """Return a dictionary where values are converted into numpy arrays suitable
     for use with JAGS.
 
-    * Returned arrays have at least one dimension.
-    * Masked values are replaced by JAGS_NA.
-    * Empty arrays are removed from the dictionary.
+     * Returned arrays have at least one dimension.
+     * Masked values are replaced by JAGS_NA.
+     * Empty arrays are removed from the dictionary.
     """
     dst = {}
     for k, v in src.items():
@@ -77,6 +84,20 @@ def _to_numpy_dictionary(src):
 
 
 class Model:
+    """JAGS model.
+
+    Note
+    ----
+    The JAGS arrays are indexed from 1. On the other hand Python uses 0 based
+    indexing. It is important to keep in mind when providing data to JAGS and
+    interpreting resulting samples. For example, what in JAGS would be
+    ``x[4,2,7]`` in Python is ``x[3,1,6]``.
+
+    Note
+    -------
+    TODO write about MaskedArrays and missing values
+
+    """
 
     def __init__(self, code=None, data=None, init=None, chains=4, tune=1000, file=None, encoding='utf-8'):
         """
@@ -99,10 +120,11 @@ class Model:
 
             Additionally this option allows to configure random number
             generators using following special keys:
-            * '.RNG.name'  string, name of random number generator
-            * '.RNG.seed'  int, seed for random number generator
-            * '.RNG.state' array, may be specified instead of seed, shape of
-              array depends on particular generator used
+
+             * '.RNG.name'  string, name of random number generator
+             * '.RNG.seed'  int, seed for random number generator
+             * '.RNG.state' array, may be specified instead of seed, shape of
+               array depends on particular generator used
         data : dict, optional
             Dictionary with observed nodes in the model. Keys are variable
             names and values should be convertible to numpy arrays with shape
@@ -193,6 +215,7 @@ class Model:
             A positive integer specifying thinning interval.
         Returns
         -------
+        dict
             Sampled values of monitored variables as a dictionary where keys
             are variable names and values are numpy arrays with shape:
             (dim_1, dim_n, chains, iterations).
@@ -217,6 +240,7 @@ class Model:
 
         Returns
         -------
+        bool
             True if achieved performance is close to the theoretical optimum.
         """
         if not self.console.isAdapting():
@@ -227,17 +251,17 @@ class Model:
 
     @property
     def variables(self):
-        """List of variables in the model."""
+        """A list of variables in the model."""
         return self.console.variableNames()
 
     @property
     def num_chains(self):
-        """Number of chains in the model."""
+        """A number of chains in the model."""
         return self.console.nchain()
 
     @property
     def chains(self):
-        """List of chains."""
+        """A list of chain identifiers in the model."""
         return list(range(1, self.console.nchain()+1))
 
     @property
