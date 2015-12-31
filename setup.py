@@ -16,14 +16,17 @@ setup(name='pyjags',
       description='Python interface to JAGS library for Bayesian data analysis.',
       author=u'Tomasz Miąsko',
       author_email='tomasz.miasko@gmail.com',
-      # TODO url
+      url='https://github.com/tmiasko/pyjags',
       license='GPL',
       classifiers=[
           'Development Status :: 3 - Alpha',
           'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
           'Operating System :: POSIX',
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
           'Programming Language :: Python :: 3.4',
+          'Topic :: Scientific/Engineering',
       ],
       packages=['pyjags'],
       ext_modules=[
