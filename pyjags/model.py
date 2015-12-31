@@ -123,11 +123,10 @@ class Model:
         tune = int(tune)
 
         @contextlib.contextmanager
-        def model_path():
+        def model_path(file=None, code=None):
             """Utility function returning model path, if necessary creates a
             new temporary file with a model code written into it.
             """
-            nonlocal code
             if file:
                 yield file
             elif code:
@@ -142,7 +141,7 @@ class Model:
                 raise ValueError('Either model name or model text must be provided.')
 
         self.console = Console()
-        with model_path() as path:
+        with model_path(file, code) as path:
             self.console.checkModel(path)
 
         data = {} if data is None else _to_numpy_dictionary(data)
