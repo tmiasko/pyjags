@@ -1,4 +1,4 @@
-// Copyright (C) 2015 Tomasz Miąsko
+// Copyright (C) 2015 Tomasz Miasko
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
