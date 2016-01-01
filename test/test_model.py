@@ -82,7 +82,7 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(ValueError):
             pyjags.Model(model, chains=2, init=1234)
 
-    def test_missing_data(self):
+    def test_missing_input_data(self):
         model = '''
         model {
             for (i in 1:length(x)) {
@@ -106,6 +106,28 @@ class TestModel(unittest.TestCase):
         self.assertIn(0, x3)
         self.assertIn(1, x3)
 
+    @unittest.skipIf(pyjags.version() < (4,0,0), "Not supported before JAGS 4.0.0")
+    def test_missing_sample_data(self):
+        model = '''
+        model {
+            x[1] ~ dnorm(0, 10)
+            x[3] ~ dnorm(0, 15)
+        }'''
+
+        m = pyjags.Model(model, chains=2)
+        s = m.sample(10, vars=['x'])
+
+        x = s['x']
+        x1 = x[0]
+        x2 = x[1]
+        x3 = x[2]
+
+        # x[2] should be completely masked
+        self.assertTrue(np.all(x2.mask))
+        # x[1] and x[3] should be plain unmasked numpy arrays
+        self.assertFalse(np.ma.is_mask(x1))
+        self.assertFalse(np.ma.is_mask(x3))
+
     def test_unused_variables_throws_exception(self):
         model = 'model { x ~ dbern(0.5) }'
 
@@ -114,3 +136,6 @@ class TestModel(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             pyjags.Model(model, init={'x': 1, 'y': 2})
+
+if __name__ == '__main__':
+    unittest.main()

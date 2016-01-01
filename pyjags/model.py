@@ -10,7 +10,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-__all__ = ['list_modules', 'load_module', 'unload_module', 'Model']
+__all__ = ['version', 'list_modules', 'load_module', 'unload_module', 'Model']
 
 from .console import *
 
@@ -30,6 +30,14 @@ JAGS_MODULES = {}
 # Special value indicating missing data in JAGS.
 JAGS_NA = Console.na()
 
+def version():
+    """JAGS version as a tuple of ints.
+
+    >>> pyjags.version()
+    (3, 4, 0)
+    """
+    v = Console.version()
+    return tuple(map(int, v.split('.')))
 
 def load_module(name):
     """Load a module.
@@ -58,13 +66,13 @@ load_module('basemod')
 load_module('bugs')
 
 
-def _to_numpy_dictionary(src):
-    """Return a dictionary where values are converted into numpy arrays suitable
+def dict_to_jags_format(src):
+    """Convert Python dictionary with array like values to format suitable
     for use with JAGS.
 
      * Returned arrays have at least one dimension.
-     * Masked values are replaced by JAGS_NA.
      * Empty arrays are removed from the dictionary.
+     * Masked values are replaced with JAGS_NA.
     """
     dst = {}
     for k, v in src.items():
@@ -75,6 +83,22 @@ def _to_numpy_dictionary(src):
             v = np.atleast_1d(v)
         if not np.size(v):
             continue
+        dst[k] = v
+    return dst
+
+
+def dict_from_jags_format(src):
+    """Convert Python dictionary with array like values returned from JAGS to
+    format suitable for use with Python.
+
+     * Arrays containing JAGS_NA values are converted to numpy MaskedArray.
+    """
+    dst = {}
+    for k, v in src.items():
+        mask = v == JAGS_NA
+        # Don't mask if it not necessary
+        if np.any(mask):
+            v = np.ma.masked_equal(v, JAGS_NA, copy=False)
         dst[k] = v
     return dst
 
@@ -116,10 +140,10 @@ class Model:
 
         Parameters
         ----------
-        code : string, optional
+        code : str or bytes, optional
             Code of the model to load. Model may be also provided with file
             keyword argument.
-        file : string, optional
+        file : str, optional
             Path to the model to load. Model may be also provided with code
             keyword argument.
         init : dict or list of dicts, optional
@@ -132,7 +156,7 @@ class Model:
             Additionally this option allows to configure random number
             generators using following special keys:
 
-             * '.RNG.name'  string, name of random number generator
+             * '.RNG.name'  str, name of random number generator
              * '.RNG.seed'  int, seed for random number generator
              * '.RNG.state' array, may be specified instead of seed, shape of
                array depends on particular generator used
@@ -147,7 +171,7 @@ class Model:
             A positive number specifying number of parallel chains.
         tune : int, 1000 by default
             An integer specifying number of adaptations steps.
-        encoding : string, 'utf-8' by default
+        encoding : str, 'utf-8' by default
             When model code is provided as a string, this specifies its encoding.
         """
 
@@ -177,7 +201,7 @@ class Model:
         with model_path(file, code) as path:
             self.console.checkModel(path)
 
-        data = {} if data is None else _to_numpy_dictionary(data)
+        data = {} if data is None else dict_to_jags_format(data)
         unused = set(data.keys()) - set(self.variables)
         if unused:
             raise ValueError('Unused data for variables: {}'.format(','.join(unused)))
@@ -195,7 +219,7 @@ class Model:
             rng_name = data.pop('.RNG.name', None)
             if rng_name is not None:
                 self.console.setRNGname(rng_name, chain)
-            data = _to_numpy_dictionary(data)
+            data = dict_to_jags_format(data)
             unused = set(data.keys()) - set(self.variables) - {'.RNG.seed', '.RNG.state'}
             if unused:
                 raise ValueError('Unused initial values in chain {} for variables: {}'.format(chain, ','.join(unused)))
@@ -220,7 +244,7 @@ class Model:
         ----------
         iterations : int
             A positive integer specifying number of iterations.
-        vars : list of variables, optional
+        vars : list of str, optional
             A list of variables to monitor.
         thin : int, optional
             A positive integer specifying thinning interval.
@@ -235,14 +259,16 @@ class Model:
         """
         if vars is None:
             vars = self.variables
+        monitored = []
         try:
             for name in vars:
                 self.console.setMonitor(name, thin, monitor_type)
+                monitored.append(name)
             self.update(iterations)
             samples = self.console.dumpMonitors(monitor_type, False)
-            # TODO support NA values that could be returned since JAGS 4.0.0
+            samples = dict_from_jags_format(samples)
         finally:
-            for name in vars:
+            for name in monitored:
                 self.console.clearMonitor(name, monitor_type)
         return samples
 
@@ -278,6 +304,6 @@ class Model:
     @property
     def state(self):
         """Internal state of the model."""
-        return [ self.console.dumpState(DUMP_ALL, chain) for chain in self.chains]
+        return [ dict_from_jags_format(self.console.dumpState(DUMP_ALL, chain)) for chain in self.chains]
 
 

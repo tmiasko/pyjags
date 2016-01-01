@@ -16,8 +16,9 @@
 #include <pybind11/stl.h>
 #include <numpy/arrayobject.h>
 
-#include <util/nainf.h>
 #include <Console.h>
+#include <util/nainf.h>
+#include <version.h>
 
 #include <sstream>
 
@@ -283,6 +284,10 @@ public:
   static double na() {
     return JAGS_NA;
   }
+
+  static const char *version() {
+    return jags_version();
+  }
 };
 }
 
@@ -367,7 +372,8 @@ PYBIND11_PLUGIN(console) {
       .def_static("setFactoryActive", &JagsConsole::setFactoryActive,
                   py::arg("name"), py::arg("type"), py::arg("active"),
                   "Sets a factory to be active or inactive")
-      .def_static("na", &JagsConsole::na, "Return value of JAGS_NA.");
+      .def_static("na", &JagsConsole::na, "Return value of JAGS_NA.")
+      .def_static("version", &JagsConsole::version, "Return versoin of JAGS library.");
 
   return module.ptr();
 }
