@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.abspath('..'))
 mock = mock.Mock()
 mock.Console = mock.Mock()
 sys.modules['pyjags.console'] = mock
+sys.modules['numpy'] = mock.Mock()
 
 # -- General configuration ------------------------------------------------
 
