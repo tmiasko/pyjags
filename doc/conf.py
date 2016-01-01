@@ -15,11 +15,15 @@
 import sys
 import os
 import shlex
+import mock
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
+mock = mock.Mock()
+mock.Console = mock.Mock()
+sys.modules['pyjags.console'] = mock
 
 # -- General configuration ------------------------------------------------
 
@@ -51,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pyjags'
-copyright = u'2015, Tomasz Miąsko'
+copyright = u'2016, Tomasz Miąsko'
 author = u'Tomasz Miąsko'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -288,5 +292,4 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 autodoc_member_order = 'bysource'
-autodoc_mock_imports = 'pyjags.console'
 napoleon_numpy_docstring = True
