@@ -1,4 +1,4 @@
-# Copyright (C) 2015 Tomasz Miasko
+# Copyright (C) 2015-2016 Tomasz Miasko
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -9,10 +9,6 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
-"""
-
-"""
 
 __all__ = ['list_modules', 'load_module', 'unload_module', 'Model']
 
@@ -36,9 +32,9 @@ JAGS_NA = Console.na()
 
 
 def load_module(name):
-    """Load module.
+    """Load a module.
 
-    During initialization pyjags loads basemod module and bugs module.
+    During initialization PyJAGS loads basemod module and bugs module.
     """
     if name not in JAGS_MODULES:
         path = os.path.join(JAGS_MODULE_DIR, name + JAGS_MODULE_EXT)
@@ -48,7 +44,7 @@ def load_module(name):
 
 
 def unload_module(name):
-    """Unload module."""
+    """Unload a module."""
     return Console.unloadModule(name)
 
 
@@ -84,19 +80,34 @@ def _to_numpy_dictionary(src):
 
 
 class Model:
-    """JAGS model.
+    """High level representation of JAGS model.
 
     Note
     ----
-    The JAGS arrays are indexed from 1. On the other hand Python uses 0 based
-    indexing. It is important to keep in mind when providing data to JAGS and
-    interpreting resulting samples. For example, what in JAGS would be
+    In JAGS arrays are indexed from 1. On the other hand Python uses 0 based
+    indexing. It is important to keep this in mind when providing data to JAGS
+    and interpreting resulting samples. For example, what in JAGS would be
     ``x[4,2,7]`` in Python is ``x[3,1,6]``.
 
     Note
-    -------
-    TODO write about MaskedArrays and missing values
+    ----
+    The JAGS supports data sets where some of observations have no value.
+    In PyJAGS those missing values are described using numpy MaskedArray.
+    For example, to create a model with observations ``x[1] = 0.25``,
+    ``x[3] = 0.75``, and observation ``x[2]`` missing, we would provide
+    following data to Model constructor:
 
+    >>> {'x': np.ma.masked_array(data=[0.25, 0, 0.75], mask=[False, True, False])}
+    {'x': masked_array(data = [0.25 -- 0.75],
+                 mask = [False  True False],
+           fill_value = 1e+20)
+    }
+
+    From JAGS version 4.0.0 it is also possible to monitor variables that are
+    not completely defined in the description of the model, e.g., if y[i] is
+    defined only for y[3], then y[1], and y[2] will have missing values for
+    all iterations in all chains. Those missing values are also represented
+    using numpy MaskedArray.
     """
 
     def __init__(self, code=None, data=None, init=None, chains=4, tune=1000, file=None, encoding='utf-8'):
