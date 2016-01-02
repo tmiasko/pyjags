@@ -10,60 +10,20 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-__all__ = ['version', 'list_modules', 'load_module', 'unload_module', 'Model']
-
-from .console import *
+__all__ = ['Model']
 
 import collections
 import contextlib
-import ctypes
-import os
-import os.path
+import sys
 import tempfile
 
 import numpy as np
 
-# TODO determine package dir using pkg-config
-JAGS_MODULE_DIR = '/usr/lib/JAGS/modules-3'
-JAGS_MODULE_EXT = '.so' if os.name == 'posix' else '.dll'
-JAGS_MODULES = {}
+from .console import Console, DUMP_ALL
+from .modules import load_module
+
 # Special value indicating missing data in JAGS.
-JAGS_NA = Console.na()
-
-def version():
-    """JAGS version as a tuple of ints.
-
-    >>> pyjags.version()
-    (3, 4, 0)
-    """
-    v = Console.version()
-    return tuple(map(int, v.split('.')))
-
-def load_module(name):
-    """Load a module.
-
-    During initialization PyJAGS loads basemod module and bugs module.
-    """
-    if name not in JAGS_MODULES:
-        path = os.path.join(JAGS_MODULE_DIR, name + JAGS_MODULE_EXT)
-        lib = ctypes.cdll.LoadLibrary(path)
-        JAGS_MODULES[name] = lib
-    Console.loadModule(name)
-
-
-def unload_module(name):
-    """Unload a module."""
-    return Console.unloadModule(name)
-
-
-def list_modules():
-    """Return a list of loaded modules."""
-    return Console.listModules()
-
-
-# Default modules
-load_module('basemod')
-load_module('bugs')
+JAGS_NA = -sys.float_info.max*(1-1e-15)
 
 
 def dict_to_jags_format(src):
@@ -174,6 +134,10 @@ class Model:
         encoding : str, 'utf-8' by default
             When model code is provided as a string, this specifies its encoding.
         """
+
+        # Ensure that default modules are loaded.
+        load_module('basemod')
+        load_module('bugs')
 
         # Detect potential type errors.
         chains = int(chains)

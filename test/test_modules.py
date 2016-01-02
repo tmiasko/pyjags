@@ -1,4 +1,4 @@
-# Copyright (C) 2015 Tomasz Miasko
+# Copyright (C) 2016 Tomasz Miasko
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,5 +10,23 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-from .model import *
-from .modules import *
+import unittest
+
+import pyjags
+
+
+class TestModules(unittest.TestCase):
+
+    def test_get_modules_dir(self):
+        self.assertIsNotNone(pyjags.get_modules_dir())
+
+    def test_module_loading(self):
+        pyjags.load_module('basemod')
+        pyjags.load_module('bugs')
+
+        self.assertEqual(
+            ['basemod', 'bugs'],
+            pyjags.list_modules())
+
+if __name__ == '__main__':
+    unittest.main()

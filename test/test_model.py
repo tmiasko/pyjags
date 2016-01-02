@@ -1,4 +1,4 @@
-# Copyright (C) 2015 Tomasz Miasko
+# Copyright (C) 2015-2016 Tomasz Miasko
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,8 +12,10 @@
 
 import os.path
 import unittest
-import pyjags
+
 import numpy as np
+
+import pyjags
 
 
 class TestModel(unittest.TestCase):
@@ -31,11 +33,6 @@ class TestModel(unittest.TestCase):
     def test_model_is_required(self):
         with self.assertRaises(ValueError):
             pyjags.Model()
-
-    def test_default_modules(self):
-        self.assertEqual(
-            ['basemod', 'bugs'],
-            pyjags.list_modules())
 
     def test_sample_with_rng_seed_is_deterministic(self):
         model_string = '''
@@ -92,7 +89,7 @@ class TestModel(unittest.TestCase):
 
         data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
         m = pyjags.Model(model, data=data, chains=1)
-        n = 10
+        n = 100
         s = m.sample(n, vars=['x'])
 
         x1 = s['x'][0,:,:]

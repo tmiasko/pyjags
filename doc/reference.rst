@@ -4,14 +4,22 @@ API Reference
 pyjags module
 -------------
 
+This is a convenience module that imports all names from submodules.
+Equivalent to ::
+
+  from pyjags.model import *
+  from pyjags.modules import *
+
+
+pyjags.model
+------------
+
 .. automodule:: pyjags.model
-.. automodule:: pyjags
-.. autofunction:: version
-.. autofunction:: list_modules
-.. autofunction:: load_module
-.. autofunction:: unload_module
-.. autoclass:: Model
-  :special-members:
   :members:
 
+pyjags.modules
+--------------
+
+.. automodule:: pyjags.modules
+  :members:
 
