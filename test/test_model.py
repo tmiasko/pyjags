@@ -79,6 +79,30 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(ValueError):
             pyjags.Model(model, chains=2, init=1234)
 
+    def test_samples_shape(self):
+        model = '''
+        model {
+            for (i in 1:3) {
+                for (j in 1:5) {
+                    x[i, j] ~ dnorm(mu[i], 1)
+
+                }
+                mu[i] ~ dunif(-1, 1)
+            }
+        }
+        '''
+
+        chains = 7
+        iterations = 17
+        data = {'x': np.zeros((3, 5))}
+
+        m = pyjags.Model(model, data=data, chains=chains)
+        s = m.sample(iterations)
+
+        self.assertEqual(s['x'].shape, (3, 5, iterations, chains))
+        self.assertEqual(s['mu'].shape, (3, iterations, chains))
+
+
     def test_missing_input_data(self):
         model = '''
         model {

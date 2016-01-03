@@ -71,15 +71,15 @@ class Model:
     In JAGS arrays are indexed from 1. On the other hand Python uses 0 based
     indexing. It is important to keep this in mind when providing data to JAGS
     and interpreting resulting samples. For example, what in JAGS would be
-    ``x[4,2,7]`` in Python is ``x[3,1,6]``.
+    x[4,2,7] in Python is x[3,1,6].
 
     Note
     ----
     The JAGS supports data sets where some of observations have no value.
     In PyJAGS those missing values are described using numpy MaskedArray.
-    For example, to create a model with observations ``x[1] = 0.25``,
-    ``x[3] = 0.75``, and observation ``x[2]`` missing, we would provide
-    following data to Model constructor:
+    For example, to create a model with observations x[1] = 0.25, x[3] = 0.75,
+    and observation x[2] missing, we would provide following data to Model
+    constructor:
 
     >>> {'x': np.ma.masked_array(data=[0.25, 0, 0.75], mask=[False, True, False])}
     {'x': masked_array(data = [0.25 -- 0.75],
@@ -217,9 +217,8 @@ class Model:
         dict
             Sampled values of monitored variables as a dictionary where keys
             are variable names and values are numpy arrays with shape:
-            (dim_1, dim_n, chains, iterations).
-
-            dim_1, ..., dim_n describe the shape of variable in JAGS model.
+            (dim_1, dim_n, iterations, chains). dim_1, ..., dim_n describe the
+            shape of variable in JAGS model.
         """
         if vars is None:
             vars = self.variables
