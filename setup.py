@@ -3,6 +3,7 @@
 from distutils.core import setup, Extension
 from numpy.distutils.misc_util import get_numpy_include_dirs
 import subprocess
+import versioneer
 
 
 def pkg_config(*args):
@@ -12,7 +13,8 @@ def pkg_config(*args):
 
 if __name__ == '__main__':
     setup(name='pyjags',
-          version='0.1',
+          version=versioneer.get_version(),
+          cmdclass=versioneer.get_cmdclass(),
           description='Python interface to JAGS library for Bayesian data analysis.',
           author=u'Tomasz Miąsko',
           author_email='tomasz.miasko@gmail.com',
