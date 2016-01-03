@@ -19,7 +19,7 @@ import tempfile
 
 import numpy as np
 
-from .console import Console, DUMP_ALL
+from .console import Console, DUMP_ALL, DUMP_DATA
 from .modules import load_module
 
 # Special value indicating missing data in JAGS.
@@ -265,8 +265,14 @@ class Model:
         return list(range(1, self.console.nchain()+1))
 
     @property
+    def data(self):
+        """Return data from the model."""
+        if not self.num_chains:
+            return {}
+        else:
+            return dict_from_jags_format(self.console.dumpState(DUMP_DATA, 1))
+
+    @property
     def state(self):
         """Internal state of the model."""
         return [ dict_from_jags_format(self.console.dumpState(DUMP_ALL, chain)) for chain in self.chains]
-
-

@@ -79,6 +79,29 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(ValueError):
             pyjags.Model(model, chains=2, init=1234)
 
+    def test_model_data(self):
+        model = '''
+        model {
+            for (i in 1:N) {
+                x[i] ~ dbin(p, n[i])
+            }
+            p ~ dbeta(1, 1)
+        }
+        '''
+
+        N = 100
+        n = np.random.random_integers(1, 10, N)
+        x = np.random.binomial(n, 0.10, N)
+        x = np.ma.masked_array(x, np.random.choice([0, 1], size=N))
+        data = dict(n=n, x=x, N=N)
+
+        m = pyjags.Model(model, data=data)
+        model_data = m.data
+
+        self.assertEqual(data.keys(), model_data.keys())
+        for var in data.keys():
+            np.testing.assert_equal(data[var], model_data[var])
+
     def test_samples_shape(self):
         model = '''
         model {
@@ -101,7 +124,6 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(s['x'].shape, (3, 5, iterations, chains))
         self.assertEqual(s['mu'].shape, (3, iterations, chains))
-
 
     def test_missing_input_data(self):
         model = '''

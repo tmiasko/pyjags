@@ -201,7 +201,9 @@ public:
     std::string rng_name;
     invoke([&] { return console_.dumpState(data, rng_name, type, chain); });
     py::dict result = to_python(data);
-    result[".RNG.name"] = py::cast(rng_name);
+    if (!rng_name.empty()) {
+      result[".RNG.name"] = py::cast(rng_name);
+    }
     return result;
   }
 
