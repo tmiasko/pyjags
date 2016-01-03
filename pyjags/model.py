@@ -19,14 +19,14 @@ import tempfile
 
 import numpy as np
 
-from .console import Console, DUMP_ALL, DUMP_DATA
+from .console import Console, DUMP_ALL, DUMP_DATA, DUMP_PARAMETERS
 from .modules import load_module
 
 # Special value indicating missing data in JAGS.
 JAGS_NA = -sys.float_info.max*(1-1e-15)
 
 
-def dict_to_jags_format(src):
+def dict_to_jags(src):
     """Convert Python dictionary with array like values to format suitable
     for use with JAGS.
 
@@ -37,7 +37,8 @@ def dict_to_jags_format(src):
     dst = {}
     for k, v in src.items():
         if np.ma.is_masked(v):
-            v = np.ma.array(data=v, dtype=np.double, ndmin=1, fill_value=JAGS_NA)
+            v = np.ma.array(data=v, dtype=np.double, ndmin=1,
+                            fill_value=JAGS_NA)
             v = np.ma.filled(v)
         else:
             v = np.atleast_1d(v)
@@ -47,7 +48,7 @@ def dict_to_jags_format(src):
     return dst
 
 
-def dict_from_jags_format(src):
+def dict_from_jags(src):
     """Convert Python dictionary with array like values returned from JAGS to
     format suitable for use with Python.
 
@@ -63,8 +64,32 @@ def dict_from_jags_format(src):
     return dst
 
 
+@contextlib.contextmanager
+def model_path(file=None, code=None, encoding='utf-8'):
+    """Utility function returning model path, if necessary creates a
+    new temporary file with a model code written into it.
+    """
+    if file:
+        yield file
+    elif code:
+        if isinstance(code, str):
+            code = code.encode(encoding=encoding)
+        # TODO use separate delete to support Windows?
+        with tempfile.NamedTemporaryFile() as fh:
+            fh.write(code)
+            fh.flush()
+            yield fh.name
+    else:
+        raise ValueError('Either model name or model text must be provided.')
+
+
 class Model:
     """High level representation of JAGS model.
+
+    Attributes
+    ----------
+    chains : int
+        A number of chains in the model.
 
     Note
     ----
@@ -94,7 +119,8 @@ class Model:
     using numpy MaskedArray.
     """
 
-    def __init__(self, code=None, data=None, init=None, chains=4, tune=1000, file=None, encoding='utf-8'):
+    def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
+                 file=None, encoding='utf-8', generate_data=True):
         """
         Create a JAGS model and run adaptation steps.
 
@@ -127,9 +153,11 @@ class Model:
 
             The numpy.ma.MaskedArray can be used to provide data where some of
             observations are missing.
+        generate_data : bool, optional
+            If true, data block in the model is used to generate data.
         chains : int, 4 by default
             A positive number specifying number of parallel chains.
-        tune : int, 1000 by default
+        adapt : int, 1000 by default
             An integer specifying number of adaptations steps.
         encoding : str, 'utf-8' by default
             When model code is provided as a string, this specifies its encoding.
@@ -139,59 +167,51 @@ class Model:
         load_module('basemod')
         load_module('bugs')
 
-        # Detect potential type errors.
-        chains = int(chains)
-        tune = int(tune)
+        self.chains = int(chains)
+        adapt = int(adapt)
 
-        @contextlib.contextmanager
-        def model_path(file=None, code=None):
-            """Utility function returning model path, if necessary creates a
-            new temporary file with a model code written into it.
-            """
-            if file:
-                yield file
-            elif code:
-                if isinstance(code, str):
-                    code = code.encode(encoding=encoding)
-                # TODO use separate delete to support Windows?
-                with tempfile.NamedTemporaryFile() as fh:
-                    fh.write(code)
-                    fh.flush()
-                    yield fh.name
-            else:
-                raise ValueError('Either model name or model text must be provided.')
-
+        # Load the model
         self.console = Console()
-        with model_path(file, code) as path:
+        with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
-        data = {} if data is None else dict_to_jags_format(data)
+        # Compile the model and extract data
+        data = {} if data is None else dict_to_jags(data)
         unused = set(data.keys()) - set(self.variables)
         if unused:
-            raise ValueError('Unused data for variables: {}'.format(','.join(unused)))
-        self.console.compile(data, chains, True)
+            raise ValueError(
+                'Unused data for variables: {}'.format(','.join(unused)))
+        self.console.compile(data, self.chains, generate_data)
+        for v in self.data.values():
+            v.setflags(write=False)
 
+        # Set parameters and configure random number generators.
         init = {} if init is None else init
         if isinstance(init, collections.Mapping):
-            init = [init] * chains
+            init = [init] * self.chains
         elif not isinstance(init, collections.Sequence):
             raise ValueError('Init should be a sequence or a dictionary.')
-        if len(init) != self.num_chains:
-            raise ValueError('Length of init sequence should equal the number of chains.')
-        for data, chain in zip(init, self.chains):
+        if len(init) != self.chains:
+            raise ValueError(
+                'Length of init sequence should equal the number of chains.')
+        for data, chain in zip(init, range(1, self.chains + 1)):
             data = dict(data)
             rng_name = data.pop('.RNG.name', None)
             if rng_name is not None:
                 self.console.setRNGname(rng_name, chain)
-            data = dict_to_jags_format(data)
-            unused = set(data.keys()) - set(self.variables) - {'.RNG.seed', '.RNG.state'}
+            data = dict_to_jags(data)
+            unused = set(data.keys()) - set(self.variables) - {'.RNG.seed',
+                                                               '.RNG.state'}
             if unused:
-                raise ValueError('Unused initial values in chain {} for variables: {}'.format(chain, ','.join(unused)))
+                raise ValueError(
+                    'Unused initial values in chain {} for variables: {}'.format(
+                        chain, ','.join(unused)))
             self.console.setParameters(data, chain)
 
+        # Initialize the model and run adaptation steps.
         self.console.initialize()
-        if tune:
-            self.adapt(tune)
+        if adapt:
+            self.adapt(adapt)
 
     def update(self, iterations):
         """Updates the model for given number of iterations."""
@@ -229,7 +249,7 @@ class Model:
                 monitored.append(name)
             self.update(iterations)
             samples = self.console.dumpMonitors(monitor_type, False)
-            samples = dict_from_jags_format(samples)
+            samples = dict_from_jags(samples)
         finally:
             for name in monitored:
                 self.console.clearMonitor(name, monitor_type)
@@ -251,28 +271,34 @@ class Model:
 
     @property
     def variables(self):
-        """A list of variables in the model."""
+        """Variable names used in the model."""
         return self.console.variableNames()
 
     @property
-    def num_chains(self):
-        """A number of chains in the model."""
-        return self.console.nchain()
+    def state(self):
+        """Values of model parameters and model data for each chain.
+
+        See Also
+        --------
+        parameters
+        data
+        """
+        return [dict_from_jags(self.console.dumpState(DUMP_ALL, chain))
+                for chain in range(1, self.chains + 1)]
 
     @property
-    def chains(self):
-        """A list of chain identifiers in the model."""
-        return list(range(1, self.console.nchain()+1))
+    def parameters(self):
+        """Values of model parameters for each chain. Includes name of random
+        number generator as '.RNG.name' and its state as '.RNG.state'.
+        """
+        return [dict_from_jags(self.console.dumpState(DUMP_PARAMETERS, chain))
+                for chain in range(1, self.chains + 1)]
 
     @property
     def data(self):
-        """Return data from the model."""
-        if not self.num_chains:
-            return {}
-        else:
-            return dict_from_jags_format(self.console.dumpState(DUMP_DATA, 1))
+        """Model data. Includes data provided during model construction and
+        data generated as part of data block.
+        """
+        return dict_from_jags(self.console.dumpState(DUMP_DATA, 1))
 
-    @property
-    def state(self):
-        """Internal state of the model."""
-        return [ dict_from_jags_format(self.console.dumpState(DUMP_ALL, chain)) for chain in self.chains]
+
