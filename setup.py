@@ -21,7 +21,7 @@ if __name__ == '__main__':
           url='https://github.com/tmiasko/pyjags',
           license='GPL',
           classifiers=[
-              'Development Status :: 3 - Alpha',
+              'Development Status :: 4 - Beta',
               'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
               'Operating System :: POSIX',
               'Programming Language :: Python :: 2',
