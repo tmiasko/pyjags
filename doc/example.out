@@ -1,3 +1,5 @@
-alpha  mean =  64.1, 95% credible interval [57.0 71.2]
+adapting: iterations 1000 of 1000, elapsed 0:00:03, remaining 0:00:00
+sampling: iterations 5000 of 5000, elapsed 0:00:17, remaining 0:00:00
+alpha  mean =  64.2, 95% credible interval [56.9 71.3]
 beta   mean =   4.0, 95% credible interval [ 3.9  4.1]
-sigma  mean =  49.4, 95% credible interval [46.9 52.0]
+sigma  mean =  49.4, 95% credible interval [46.9 52.1]

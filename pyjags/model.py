@@ -21,6 +21,7 @@ import numpy as np
 
 from .console import Console, DUMP_ALL, DUMP_DATA, DUMP_PARAMETERS
 from .modules import load_module
+from .progressbar import  progress_bar, stepwise
 
 # Special value indicating missing data in JAGS.
 JAGS_NA = -sys.float_info.max*(1-1e-15)
@@ -120,7 +121,8 @@ class Model:
     """
 
     def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
-                 file=None, encoding='utf-8', generate_data=True):
+                 file=None, encoding='utf-8', generate_data=True,
+                 progress_bar=True):
         """
         Create a JAGS model and run adaptation steps.
 
@@ -161,12 +163,15 @@ class Model:
             An integer specifying number of adaptations steps.
         encoding : str, 'utf-8' by default
             When model code is provided as a string, this specifies its encoding.
+        progress_bar : bool, optional
+            If true, enables the progress bar.
         """
 
         # Ensure that default modules are loaded.
         load_module('basemod')
         load_module('bugs')
 
+        self.enable_progress_bar = progress_bar
         self.chains = int(chains)
         adapt = int(adapt)
 
@@ -213,10 +218,14 @@ class Model:
         if adapt:
             self.adapt(adapt)
 
+    def _update(self, iterations, header):
+        progress = progress_bar(self.enable_progress_bar)
+        with progress(self.console.update, iterations, header=header) as fun:
+            stepwise(fun, iterations, .5)
+
     def update(self, iterations):
         """Updates the model for given number of iterations."""
-        # TODO progress bar?
-        self.console.update(iterations)
+        self._update(iterations, 'updating: ')
 
     def sample(self, iterations, vars=None, thin=1, monitor_type="trace"):
         """
@@ -247,7 +256,7 @@ class Model:
             for name in vars:
                 self.console.setMonitor(name, thin, monitor_type)
                 monitored.append(name)
-            self.update(iterations)
+            self._update(iterations, 'sampling: ')
             samples = self.console.dumpMonitors(monitor_type, False)
             samples = dict_from_jags(samples)
         finally:
@@ -266,7 +275,7 @@ class Model:
         if not self.console.isAdapting():
             # Model does not require adaptation
             return True
-        self.console.update(iterations)
+        self._update(iterations, 'adapting: ')
         return self.console.checkAdaptation()
 
     @property
