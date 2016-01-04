@@ -19,10 +19,10 @@ if __name__ == '__main__':
           author=u'Tomasz Miąsko',
           author_email='tomasz.miasko@gmail.com',
           url='https://github.com/tmiasko/pyjags',
-          license='GPL',
+          license='GPLv2',
           classifiers=[
               'Development Status :: 4 - Beta',
-              'License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)',
+              'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
               'Operating System :: POSIX',
               'Programming Language :: Python :: 2',
               'Programming Language :: Python :: 2.7',
