@@ -1,0 +1,5 @@
+graft doc
+prune doc/_build
+
+include pybind11/LICENSE pybind11/README.md
+recursive-include pybind11/include *.h

@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 from numpy.distutils.misc_util import get_numpy_include_dirs
 import subprocess
 import versioneer
@@ -24,17 +24,21 @@ if __name__ == '__main__':
               'Development Status :: 4 - Beta',
               'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
               'Operating System :: POSIX',
+              'Programming Language :: C++',
               'Programming Language :: Python :: 2',
               'Programming Language :: Python :: 2.7',
               'Programming Language :: Python :: 3',
               'Programming Language :: Python :: 3.4',
+              'Programming Language :: Python :: 3.5',
+              'Programming Language :: Python',
+              'Topic :: Scientific/Engineering :: Information Analysis'
               'Topic :: Scientific/Engineering',
           ],
           packages=['pyjags'],
           ext_modules=[
               Extension(
                   'pyjags.console',
-                  include_dirs=['pybind11/include/'] + get_numpy_include_dirs(),
+                  include_dirs=['pybind11/include'] + get_numpy_include_dirs(),
                   libraries=['jags'],
                   define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
                   extra_compile_args=['-std=c++11'] + pkg_config('jags', '--cflags'),
