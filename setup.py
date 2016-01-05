@@ -21,7 +21,6 @@ import versioneer
 def add_pkg_config(ext, package):
     flags_map = {
         '-I': ['include_dirs'],
-        '-D': ['define_macros'],
         '-L': ['library_dirs', 'runtime_library_dirs'],
         '-l': ['libraries'],
     }
@@ -32,6 +31,16 @@ def add_pkg_config(ext, package):
     for flag in output.split():
         for attr in flags_map[flag[:2]]:
             getattr(ext, attr).append(flag[2:])
+
+    args = ['pkg-config', '--modversion', package]
+    output = subprocess.check_output(args)
+    return output.strip()
+
+
+def add_jags(ext):
+    version = add_pkg_config(ext, 'jags')
+    version = '"{}"'.format(version)
+    ext.define_macros.append(('PYJAGS_JAGS_VERSION', version))
 
 
 def add_numpy(ext):
@@ -49,7 +58,7 @@ def add_pybind11(ext):
 
 if __name__ == '__main__':
     ext = Extension('pyjags.console', sources=['pyjags/console.cc'])
-    add_pkg_config(ext, 'jags')
+    add_jags(ext)
     add_numpy(ext)
     add_pybind11(ext)
 

@@ -19,6 +19,7 @@
 #include <util/nainf.h>
 #include <version.h>
 
+#include <cstring>
 #include <sstream>
 
 namespace py = pybind11;
@@ -305,6 +306,13 @@ PYBIND11_PLUGIN(console) {
 
   if (PyModule_AddObject(module.ptr(), "JagsError", JagsError.ptr())) {
     return nullptr;
+  }
+
+  if (std::strcmp(PYJAGS_JAGS_VERSION, jags_version()) != 0) {
+      PyErr_Format(JagsError.ptr(),
+                   "Incompatible JAGS version. "
+                   "Compiled against version %s, but using version %s.",
+                   PYJAGS_JAGS_VERSION, jags_version());
   }
 
   py::enum_<DumpType>(module, "DumpType",
