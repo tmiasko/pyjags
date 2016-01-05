@@ -57,7 +57,9 @@ def add_pybind11(ext):
 
 
 if __name__ == '__main__':
-    ext = Extension('pyjags.console', sources=['pyjags/console.cc'])
+    ext = Extension('pyjags.console',
+                    language='c++',
+                    sources=['pyjags/console.cc'])
     add_jags(ext)
     add_numpy(ext)
     add_pybind11(ext)

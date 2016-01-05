@@ -1,0 +1,22 @@
+language: python
+#addons:
+#  apt:
+#    packages:
+#    - jags
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "3.5-dev" # 3.5 development branch
+  - "nightly" # currently points to 3.6-dev
+before_install:
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+install:
+  - sudo apt-get install -qq build-essential gcc-4.9 g++-4.9 jags
+  - export CXX="g++-4.9"
+  - export CC="gcc-4.9"
+  - python setup.py install
+script:
+  - python setup.py test
