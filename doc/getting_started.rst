@@ -31,11 +31,6 @@ as follows::
 
   export PKG_CONFIG_PATH=/opt/lib/pkgconfig/:$PKG_CONFIG_PATH
 
-In addition, before importing pyjags, you must also ensure that JAGS library
-will be located by dynamic library loader::
-
-  export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH
-
 Example
 -------
 

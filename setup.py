@@ -1,17 +1,58 @@
 # encoding: utf-8
+#
+# Copyright (C) 2015-2016 Tomasz Miasko
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-from setuptools import setup, Extension
-from numpy.distutils.misc_util import get_numpy_include_dirs
+import sys
+
+from setuptools import dist, setup, Extension
 import subprocess
 import versioneer
 
 
-def pkg_config(*args):
-    cmd = ['pkg-config']
-    cmd.extend(args)
-    return subprocess.check_output(cmd).decode().split()
+def add_pkg_config(ext, package):
+    flags_map = {
+        '-I': ['include_dirs'],
+        '-D': ['define_macros'],
+        '-L': ['library_dirs', 'runtime_library_dirs'],
+        '-l': ['libraries'],
+    }
+
+    args = ['pkg-config', '--libs', '--cflags', package]
+    output = subprocess.check_output(args)
+    output = output.decode()
+    for flag in output.split():
+        for attr in flags_map[flag[:2]]:
+            getattr(ext, attr).append(flag[2:])
+
+
+def add_numpy(ext):
+    try:
+        import numpy
+    except ImportError:
+        sys.exit('Please install numpy first.')
+    ext.include_dirs.append(numpy.get_include())
+
+
+def add_pybind11(ext):
+    ext.include_dirs.append('pybind11/include')
+    ext.extra_compile_args.append('-std=c++11')
+
 
 if __name__ == '__main__':
+    ext = Extension('pyjags.console', sources=['pyjags/console.cc'])
+    add_pkg_config(ext, 'jags')
+    add_numpy(ext)
+    add_pybind11(ext)
+
     setup(name='pyjags',
           version=versioneer.get_version(),
           cmdclass=versioneer.get_cmdclass(),
@@ -31,18 +72,10 @@ if __name__ == '__main__':
               'Programming Language :: Python :: 3.4',
               'Programming Language :: Python :: 3.5',
               'Programming Language :: Python',
-              'Topic :: Scientific/Engineering :: Information Analysis'
+              'Topic :: Scientific/Engineering :: Information Analysis',
               'Topic :: Scientific/Engineering',
           ],
           packages=['pyjags'],
-          ext_modules=[
-              Extension(
-                  'pyjags.console',
-                  include_dirs=['pybind11/include'] + get_numpy_include_dirs(),
-                  libraries=['jags'],
-                  define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
-                  extra_compile_args=['-std=c++11'] + pkg_config('jags', '--cflags'),
-                  extra_link_args=pkg_config('jags', '--libs'),
-                  sources=['pyjags/console.cc'])
-          ],
-          requires=['numpy'])
+          ext_modules=[ext],
+          install_requires=['numpy'],
+          test_suite='test')
