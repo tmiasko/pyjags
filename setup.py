@@ -18,6 +18,11 @@ import subprocess
 import versioneer
 
 
+def content(path):
+    with open(path) as fh:
+        return fh.read()
+
+
 def add_pkg_config(ext, package):
     flags_map = {
         '-I': ['include_dirs'],
@@ -68,6 +73,7 @@ if __name__ == '__main__':
           version=versioneer.get_version(),
           cmdclass=versioneer.get_cmdclass(),
           description='Python interface to JAGS library for Bayesian data analysis.',
+          long_description=content('README.rst'),
           author=u'Tomasz Miąsko',
           author_email='tomasz.miasko@gmail.com',
           url='https://github.com/tmiasko/pyjags',

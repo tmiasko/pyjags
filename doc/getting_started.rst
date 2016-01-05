@@ -12,14 +12,17 @@ Prerequisites
 Installation
 ------------
 
-Using pip::
+Stable release from pip (recommended)::
+
+  pip install pyjags
+
+Development version::
 
   pip install git+https://github.com/tmiasko/pyjags.git
 
 Using setup.py after cloning the repository::
 
-  git clone https://github.com/tmiasko/pyjags.git
-  git submodule --update --init
+  git clone --recursive https://github.com/tmiasko/pyjags.git
   python setup.py install
 
 The setup.py script uses pkg-config to locate the JAGS library. If JAGS is
