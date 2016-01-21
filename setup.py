@@ -30,16 +30,20 @@ def add_pkg_config(ext, package):
         '-l': ['libraries'],
     }
 
-    args = ['pkg-config', '--libs', '--cflags', package]
-    output = subprocess.check_output(args)
-    output = output.decode()
-    for flag in output.split():
-        for attr in flags_map[flag[:2]]:
-            getattr(ext, attr).append(flag[2:])
+    try:
+        args = ['pkg-config', '--libs', '--cflags', package]
+        output = subprocess.check_output(args)
+        output = output.decode()
+        for flag in output.split():
+            for attr in flags_map[flag[:2]]:
+                getattr(ext, attr).append(flag[2:])
 
-    args = ['pkg-config', '--modversion', package]
-    output = subprocess.check_output(args)
-    return output.strip()
+        args = ['pkg-config', '--modversion', package]
+        output = subprocess.check_output(args)
+        return output.strip()
+    except Exception as err:
+        print("Error while executing pkg-config: {}".format(err))
+        sys.exit(1)
 
 
 def add_jags(ext):
