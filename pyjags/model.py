@@ -83,6 +83,61 @@ def model_path(file=None, code=None, encoding='utf-8'):
         raise ValueError('Either model name or model text must be provided.')
 
 
+class ConsoleMultiplexer:
+
+    def __init__(self, chains, threads=1):
+        self.threads = min(chains, threads)
+        self.consoles = [Console() for _ in range(chains)]
+
+    def checkModel(self, path):
+        for c in self.consoles:
+            c.checkModel(path)
+
+    def compile(self, data, chains, generate_data):
+        assert(chains == len(self.consoles))
+        for c in self.consoles:
+            c.compile(data, 1, generate_data)
+
+    def setRNGname(self, name, chain):
+        self.consoles[chain - 1].setRNGname(name, 1)
+
+    def setParameters(self, data, chain):
+        self.consoles[chain - 1].setParameters(data, 1)
+
+    def setMonitor(self, name, thin, monitor_type):
+        for c in self.consoles:
+            c.setMonitor(name, thin, monitor_type)
+
+    def clearMonitor(self, name, monitor_type):
+        for c in self.consoles:
+            c.clearMonitor(name, monitor_type)
+
+    def dumpMonitors(self, monitor_type, flat):
+        ds = [c.dumpMonitors(monitor_type, flat) for c in self.consoles]
+        return {k: np.concatenate([d[k] for d in ds], axis=-1)
+                for k in set(k for d in ds for k in d.keys())}
+
+    def initialize(self):
+        for c in self.consoles:
+            c.initialize()
+
+    def update(self, iterations):
+        for c in self.consoles:
+            c.update(iterations)
+
+    def isAdapting(self):
+        return any(c.isAdapting() for c in self.consoles)
+
+    def checkAdaptation(self):
+        return any(c.checkAdaptation() for c in self.consoles)
+
+    def variableNames(self):
+        return self.consoles[0].variableNames()
+
+    def dumpState(self, type, chain):
+        return self.consoles[chain - 1].dumpState(type, 1)
+
+
 class Model:
     """High level representation of JAGS model.
 
@@ -175,7 +230,7 @@ class Model:
         adapt = int(adapt)
 
         # Load the model
-        self.console = Console()
+        self.console = ConsoleMultiplexer(chains)
         with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
@@ -308,5 +363,3 @@ class Model:
         data generated as part of data block.
         """
         return dict_from_jags(self.console.dumpState(DUMP_DATA, 1))
-
-
