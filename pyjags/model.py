@@ -85,23 +85,44 @@ def model_path(file=None, code=None, encoding='utf-8'):
 
 class MultiConsole:
 
-    def __init__(self, chains):
-        self.consoles = [Console() for _ in range(chains)]
+    def __init__(self, chains, chains_per_thread):
+        # Multiple consoles that emulate a single JAGS console.
+        self.consoles = []
+        self.chains_per_console = []
+        # Map from outer chain number to inner console and its inner chain number.
+        # Uses JAGS indexing from 1.
+        self.chains = {}
+
+        outer_chain = 1
+        while chains > 0:
+            console = Console()
+            console_chains = min(chains_per_thread, chains)
+
+            self.consoles.append(console)
+            self.chains_per_console.append(console_chains)
+
+            for inner_chain in range(1, console_chains+1):
+                self.chains[outer_chain] = (console, inner_chain)
+                outer_chain += 1
+
+            chains -= chains_per_thread
 
     def checkModel(self, path):
         for c in self.consoles:
             c.checkModel(path)
 
     def compile(self, data, chains, generate_data):
-        assert(chains == len(self.consoles))
-        for c in self.consoles:
-            c.compile(data, 1, generate_data)
+        assert(chains == len(self.chains))
+        for console, chains in zip(self.consoles, self.chains_per_console):
+            console.compile(data, chains, generate_data)
 
     def setRNGname(self, name, chain):
-        self.consoles[chain - 1].setRNGname(name, 1)
+        console, chain = self.chains[chain]
+        console.setRNGname(name, chain)
 
     def setParameters(self, data, chain):
-        self.consoles[chain - 1].setParameters(data, 1)
+        console, chain = self.chains[chain]
+        console.setParameters(data, chain)
 
     def setMonitor(self, name, thin, monitor_type):
         for c in self.consoles:
@@ -113,8 +134,6 @@ class MultiConsole:
 
     def dumpMonitors(self, monitor_type, flat):
         ds = [c.dumpMonitors(monitor_type, flat) for c in self.consoles]
-        # TODO if dimensions does not match (because of interruption)
-        # emit warning and try to use common part
         return {k: np.concatenate([d[k] for d in ds], axis=-1)
                 for k in set(k for d in ds for k in d.keys())}
 
@@ -132,7 +151,8 @@ class MultiConsole:
         return self.consoles[0].variableNames()
 
     def dumpState(self, type, chain):
-        return self.consoles[chain - 1].dumpState(type, 1)
+        console, chain = self.chains[chain]
+        return console.dumpState(type, chain)
 
 
 class Model:
@@ -173,7 +193,7 @@ class Model:
 
     def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
                  file=None, encoding='utf-8', generate_data=True,
-                 progress_bar=True, threads=1):
+                 progress_bar=True, threads=1, chains_per_thread=1):
         """
         Create a JAGS model and run adaptation steps.
 
@@ -216,19 +236,25 @@ class Model:
             When model code is provided as a string, this specifies its encoding.
         progress_bar : bool, optional
             If true, enables the progress bar.
+        threads: int, 1 by default
+            A positive integer specifying number of threads used to sample from model.
+            Using more than one thread is experimental functionality.
+        chains_per_thread: int, 1 by default
+            A positive integer specifying number of chains sampled in a single thread.
+            Used only when using more than one thread.
         """
 
         # Ensure that default modules are loaded.
         load_module('basemod')
         load_module('bugs')
 
-        self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=2.0)
+        self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=0.5)
         self.chains = int(chains)
         adapt = int(adapt)
 
         # Load the model
         self.threads = min(self.chains, threads)
-        self.console = Console() if self.threads <= 1 else MultiConsole(chains)
+        self.console = Console() if self.threads <= 1 else MultiConsole(chains, chains_per_thread)
         with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
@@ -289,14 +315,15 @@ class Model:
             # non-interruptable by default).
             interrupt = Event()
 
-            def update(c):
+            def update(console, chains):
                 for steps in const_time_partition(iterations, pb.refresh_seconds):
                     if interrupt.is_set():
                         break
-                    c.update(steps)
-                    pb.update(steps)
-
-            fs = [executor.submit(update, c) for c in self.console.consoles]
+                    console.update(steps)
+                    pb.update(chains * steps)
+            fs = [executor.submit(update, console, chains)
+                  for console, chains in zip(self.console.consoles,
+                                             self.console.chains_per_console)]
             try:
                 (done, not_done) = wait(fs, return_when=ALL_COMPLETED)
                 for d in done:

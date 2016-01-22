@@ -184,7 +184,8 @@ class TestModel(unittest.TestCase):
         }'''
 
         data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
-        m = self.model(code, data=data, chains=1)
+        c = 2
+        m = self.model(code, data=data, chains=c)
         n = 100
         s = m.sample(n, vars=['x'])
 
@@ -193,8 +194,8 @@ class TestModel(unittest.TestCase):
         x3 = s['x'][2,:,:]
 
         # Observed values, samples should be constant
-        np.testing.assert_equal([0] * n, x1.flatten())
-        np.testing.assert_equal([1] * n, x2.flatten())
+        np.testing.assert_equal([0] * n * c, x1.flatten())
+        np.testing.assert_equal([1] * n * c, x2.flatten())
         # Missing value, samples should vary between 0 and 1
         self.assertIn(0, x3)
         self.assertIn(1, x3)
@@ -236,6 +237,11 @@ class TestModelWithThreads(TestModel):
     def model(self, *args, **kwargs):
         return pyjags.Model(*args, **kwargs, threads=3)
 
+
+class TestModelWithChainsPerThread(TestModel):
+
+    def model(self, *args, **kwargs):
+        return pyjags.Model(*args, **kwargs, threads=3, chains_per_thread=2)
 
 if __name__ == '__main__':
     unittest.main()
