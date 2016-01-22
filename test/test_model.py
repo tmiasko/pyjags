@@ -17,21 +17,32 @@ import numpy as np
 import pyjags
 
 
+class ParametrizedTestCase(unittest.TestCase):
+
+    def __init__(self, method_name, **params):
+        super(ParametrizedTestCase, self).__init__(method_name)
+        self.__dict__.update(params)
+
+
 class TestModel(unittest.TestCase):
+
+    def model(self, *args, **kwargs):
+        """Create new model instance."""
+        return pyjags.Model(*args, **kwargs)
 
     def test_creating_model_from_string(self):
         # No exceptions should be thrown.
-        pyjags.Model(code='model { y ~ dbern(1) }')
-        pyjags.Model(code=b'model { y ~ dbern(1) }')
+        self.model(code='model { y ~ dbern(1) }')
+        self.model(code=b'model { y ~ dbern(1) }')
 
     def test_creating_model_from_file(self):
         path = os.path.dirname(__file__)
         path = os.path.join(path, 'model.jags')
-        pyjags.Model(file=path)
+        self.model(file=path)
 
     def test_model_is_required(self):
         with self.assertRaises(ValueError):
-            pyjags.Model()
+            self.model()
 
     def test_random_number_generator_seed(self):
         code = '''
@@ -44,8 +55,8 @@ class TestModel(unittest.TestCase):
             '.RNG.seed': 1
         }
         n = 100
-        s1 = pyjags.Model(code, init=init).sample(n)
-        s2 = pyjags.Model(code, init=init).sample(n)
+        s1 = self.model(code, init=init).sample(n)
+        s2 = self.model(code, init=init).sample(n)
         np.testing.assert_equal(s1, s2,
                                 'Using seed should be give deterministic samples.')
 
@@ -61,7 +72,7 @@ class TestModel(unittest.TestCase):
         init = [{'.RNG.name': name, '.RNG.seed': 0} for name in expected_names]
         chains = len(init)
 
-        model = pyjags.Model(code, init=init, chains=chains, adapt=10)
+        model = self.model(code, init=init, chains=chains, adapt=10)
         model.sample(20)
 
         actual_names = [v for state in model.state
@@ -73,17 +84,17 @@ class TestModel(unittest.TestCase):
         # This used to throw an exception.
         code = 'model { x ~ dbern(1) }'
         data = {'x': []}
-        pyjags.Model(code, data=data)
+        self.model(code, data=data)
 
     def test_invalid_length_of_initial_value_list_throws_exception(self):
         model = 'model { x ~ dbern(1) }'
         with self.assertRaises(ValueError):
-            pyjags.Model(model, chains=2, init=[dict(x=1)])
+            self.model(model, chains=2, init=[dict(x=1)])
 
     def test_invalid_type_of_init_value_list(self):
         code = 'model { x ~ dbern(1) }'
         with self.assertRaises(ValueError):
-            pyjags.Model(code, chains=2, init=1234)
+            self.model(code, chains=2, init=1234)
 
     def test_model_variables(self):
         code = '''
@@ -98,7 +109,7 @@ class TestModel(unittest.TestCase):
         }
         '''
 
-        model = pyjags.Model(code)
+        model = self.model(code)
         self.assertEqual({'a', 'b', 'x'}, set(model.variables))
 
     def test_model_data(self):
@@ -117,7 +128,7 @@ class TestModel(unittest.TestCase):
         x = np.ma.masked_array(x, np.random.choice([0, 1], size=N))
         data = dict(n=n, x=x, N=N)
 
-        m = pyjags.Model(code, data=data)
+        m = self.model(code, data=data)
         model_data = m.data
 
         self.assertEqual(data.keys(), model_data.keys())
@@ -134,7 +145,7 @@ class TestModel(unittest.TestCase):
         }
         '''
         chains = 3
-        model = pyjags.Model(code, data=dict(x=np.zeros(10)), chains=chains)
+        model = self.model(code, data=dict(x=np.zeros(10)), chains=chains)
 
         parameters = model.parameters
         self.assertEqual(chains, len(parameters))
@@ -158,7 +169,7 @@ class TestModel(unittest.TestCase):
         iterations = 17
         data = {'x': np.zeros((3, 5))}
 
-        m = pyjags.Model(code, data=data, chains=chains)
+        m = self.model(code, data=data, chains=chains)
         s = m.sample(iterations)
 
         self.assertEqual(s['x'].shape, (3, 5, iterations, chains))
@@ -173,7 +184,7 @@ class TestModel(unittest.TestCase):
         }'''
 
         data = {'x': np.ma.masked_outside([0, 1, -1], 0, 1)}
-        m = pyjags.Model(code, data=data, chains=1)
+        m = self.model(code, data=data, chains=1)
         n = 100
         s = m.sample(n, vars=['x'])
 
@@ -196,7 +207,7 @@ class TestModel(unittest.TestCase):
             x[3] ~ dnorm(0, 15)
         }'''
 
-        m = pyjags.Model(code, chains=2)
+        m = self.model(code, chains=2)
         s = m.sample(10, vars=['x'])
 
         x = s['x']
@@ -214,10 +225,17 @@ class TestModel(unittest.TestCase):
         code = 'model { x ~ dbern(0.5) }'
 
         with self.assertRaises(ValueError):
-            pyjags.Model(code, data=dict(x=1, y=2))
+            self.model(code, data=dict(x=1, y=2))
 
         with self.assertRaises(ValueError):
-            pyjags.Model(code, init=dict(x=1, y=2))
+            self.model(code, init=dict(x=1, y=2))
+
+
+class TestModelWithThreads(TestModel):
+
+    def model(self, *args, **kwargs):
+        return pyjags.Model(*args, **kwargs, threads=3)
+
 
 if __name__ == '__main__':
     unittest.main()

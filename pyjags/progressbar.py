@@ -11,6 +11,7 @@
 
 __all__ = ['const_time_partition', 'progressbar']
 
+import math
 import sys
 import threading
 import time
@@ -167,7 +168,10 @@ class ProgressBar(ProgressBarBase):
     @property
     def remaining(self):
         remaining_seconds = self.iterations_remaining * self.time_per_iteration
-        return timedelta(seconds=round(remaining_seconds, 0))
+        if math.isinf(remaining_seconds):
+            return timedelta.max
+        else:
+            return timedelta(seconds=round(remaining_seconds, 0))
 
 
 def progress_bar_factory(enable, *args, **kwargs):

@@ -85,8 +85,7 @@ def model_path(file=None, code=None, encoding='utf-8'):
 
 class MultiConsole:
 
-    def __init__(self, chains, threads=1):
-        self.threads = min(chains, threads)
+    def __init__(self, chains):
         self.consoles = [Console() for _ in range(chains)]
 
     def checkModel(self, path):
@@ -229,7 +228,7 @@ class Model:
 
         # Load the model
         self.threads = min(self.chains, threads)
-        self.console = Console() if threads <= 1 else MultiConsole(chains)
+        self.console = Console() if self.threads <= 1 else MultiConsole(chains)
         with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
