@@ -247,29 +247,42 @@ class Model:
         # Ensure that default modules are loaded.
         load_module('basemod')
         load_module('bugs')
+        load_module('lecuyer')
 
         self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=0.5)
-        self.chains = int(chains)
-        adapt = int(adapt)
+        self.chains = chains
+        self.threads = threads
+        self.use_threads = self.threads > 1 and chains_per_thread < self.chains
 
-        # Load the model
-        self.threads = min(self.chains, threads)
-        self.console = Console() if self.threads <= 1 else MultiConsole(chains, chains_per_thread)
+        if self.use_threads:
+            self.console = MultiConsole(self.chains, chains_per_thread)
+        else:
+            self.console = Console()
+
         with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
-        # Compile the model and extract data
-        data = {} if data is None else dict_to_jags(data)
+        self._init_compile(data, generate_data)
+        self._init_parameters(init)
+        self.console.initialize()
+        if adapt:
+            self.adapt(adapt)
+
+    def _init_compile(self, data, generate_data):
+        if data is None:
+            data = {}
+        data = dict_to_jags(data)
         unused = set(data.keys()) - set(self.variables)
         if unused:
             raise ValueError(
                 'Unused data for variables: {}'.format(','.join(unused)))
         self.console.compile(data, self.chains, generate_data)
-        for v in self.data.values():
-            v.setflags(write=False)
 
-        # Set parameters and configure random number generators.
-        init = {} if init is None else init
+
+    def _init_parameters(self, init):
+        """Set parameters and configure random number generators."""
+        if init is None:
+            init = {}
         if isinstance(init, collections.Mapping):
             init = [init] * self.chains
         elif not isinstance(init, collections.Sequence):
@@ -277,36 +290,46 @@ class Model:
         if len(init) != self.chains:
             raise ValueError(
                 'Length of init sequence should equal the number of chains.')
-        for data, chain in zip(init, range(1, self.chains + 1)):
+
+        if self.use_threads:
+            rngs = Console.parallel_rngs('lecuyer::RngStream', self.chains)
+        else:
+            rngs = [{'.RNG.name': None, '.RNG.seed': None}] * self.chains
+
+        for data, rng, chain in zip(init, rngs, range(1, self.chains + 1)):
             data = dict(data)
             rng_name = data.pop('.RNG.name', None)
+            if self.use_threads and rng_name is None:
+                rng_name = rng['.RNG.name']
+                data['.RNG.state'] = rng['.RNG.state']
             if rng_name is not None:
                 self.console.setRNGname(rng_name, chain)
             data = dict_to_jags(data)
-            unused = set(data.keys()) - set(self.variables) - {'.RNG.seed',
-                                                               '.RNG.state'}
+
+            unused = set(data.keys())
+            unused.difference_update(self.variables)
+            unused.difference_update(['.RNG.seed', '.RNG.state'])
             if unused:
                 raise ValueError(
                     'Unused initial values in chain {} for variables: {}'.format(
                         chain, ','.join(unused)))
             self.console.setParameters(data, chain)
 
-        # Initialize the model and run adaptation steps.
-        self.console.initialize()
-        if adapt:
-            self.adapt(adapt)
-
     def _update(self, iterations, header):
-        method = self._update_sequential if self.threads <= 1 else self._update_parallel
+        if self.use_threads:
+            method = self._update_parallel
+        else:
+            method = self._update_sequential
+
         with self.progress_bar(self.chains * iterations, header=header) as pb:
             method(pb, iterations)
 
-    def _update_sequential(self, pb, iterations):
-        for steps in const_time_partition(iterations, pb.refresh_seconds):
+    def _update_sequential(self, progress, iterations):
+        for steps in const_time_partition(iterations, progress.refresh_seconds):
             self.console.update(steps)
-            pb.update(self.chains * steps)
+            progress.update(self.chains * steps)
 
-    def _update_parallel(self, pb, iterations):
+    def _update_parallel(self, progress, iterations):
         from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
         from threading import Event
 
@@ -316,11 +339,11 @@ class Model:
             interrupt = Event()
 
             def update(console, chains):
-                for steps in const_time_partition(iterations, pb.refresh_seconds):
+                for steps in const_time_partition(iterations, progress.refresh_seconds):
                     if interrupt.is_set():
                         break
                     console.update(steps)
-                    pb.update(chains * steps)
+                    progress.update(chains * steps)
             fs = [executor.submit(update, console, chains)
                   for console, chains in zip(self.console.consoles,
                                              self.console.chains_per_console)]

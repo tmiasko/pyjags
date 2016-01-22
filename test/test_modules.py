@@ -22,9 +22,10 @@ class TestModules(unittest.TestCase):
     def test_module_loading(self):
         pyjags.load_module('basemod')
         pyjags.load_module('bugs')
+        pyjags.load_module('lecuyer')
 
         self.assertEqual(
-            ['basemod', 'bugs'],
+            ['basemod', 'bugs', 'lecuyer'],
             pyjags.list_modules())
 
 if __name__ == '__main__':

@@ -16,6 +16,9 @@
 #include <numpy/arrayobject.h>
 
 #include <Console.h>
+#include <model/Model.h>
+#include <rng/RNG.h>
+#include <rng/RNGFactory.h>
 #include <util/nainf.h>
 #include <version.h>
 
@@ -114,7 +117,7 @@ std::map<std::string, SArray> to_jags(py::dict dictionary) {
   std::map<std::string, SArray> result;
   for (const auto &item : dictionary) {
     const std::string key = item.first.cast<std::string>();
-    result.emplace(key, to_jags(py::array(item.second)));
+    result.emplace(key, to_jags(py::object(item.second, true)));
   }
   return result;
 }
@@ -290,6 +293,42 @@ public:
   static const char *version() {
     return jags_version();
   }
+
+  static py::list parallel_rngs(const std::string &factory,
+                                unsigned int chains) {
+    std::string error;
+    std::vector<RNG *> rngs;
+
+    const auto &factories = Model::rngFactories();
+    for (const auto &f : factories) {
+      if (f.first->name() == factory) {
+        if (!f.second) {
+          PyErr_Format(JagsError.ptr(), "RNG factory not active: %s",
+                       factory.c_str());
+          throw py::error_already_set();
+        }
+        rngs = f.first->makeRNGs(chains);
+        break;
+      }
+    }
+
+    if (rngs.empty()) {
+      PyErr_Format(JagsError.ptr(), "RNG factory not found: %s",
+                   factory.c_str());
+      throw py::error_already_set();
+    }
+
+    py::list result;
+    for (auto rng : rngs) {
+      std::vector<int> state;
+      rng->getState(state);
+      py::dict d;
+      d[".RNG.name"] = py::str(rng->name());
+      d[".RNG.state"] = py::cast(state);
+      result.append(d);
+    }
+    return result;
+  }
 };
 }
 
@@ -381,8 +420,12 @@ PYBIND11_PLUGIN(console) {
       .def_static("setFactoryActive", &JagsConsole::setFactoryActive,
                   py::arg("name"), py::arg("type"), py::arg("active"),
                   "Sets a factory to be active or inactive")
+      // TODO move outside of Console
       .def_static("na", &JagsConsole::na, "Return value of JAGS_NA.")
-      .def_static("version", &JagsConsole::version, "Return versoin of JAGS library.");
+      .def_static("version", &JagsConsole::version,
+                  "Return version of JAGS library.")
+      .def_static("parallel_rngs", &JagsConsole::parallel_rngs,
+                  "RNGs for execution in parallel.");
 
   return module.ptr();
 }
