@@ -20,7 +20,7 @@ import numpy as np
 
 from .console import Console, DUMP_ALL, DUMP_DATA, DUMP_PARAMETERS
 from .modules import load_module
-from .progressbar import  progress_bar, stepwise
+from .progressbar import const_time_partition, progress_bar_factory
 
 # Special value indicating missing data in JAGS.
 JAGS_NA = -sys.float_info.max*(1-1e-15)
@@ -83,7 +83,7 @@ def model_path(file=None, code=None, encoding='utf-8'):
         raise ValueError('Either model name or model text must be provided.')
 
 
-class ConsoleMultiplexer:
+class MultiConsole:
 
     def __init__(self, chains, threads=1):
         self.threads = min(chains, threads)
@@ -114,16 +114,14 @@ class ConsoleMultiplexer:
 
     def dumpMonitors(self, monitor_type, flat):
         ds = [c.dumpMonitors(monitor_type, flat) for c in self.consoles]
+        # TODO if dimensions does not match (because of interruption)
+        # emit warning and try to use common part
         return {k: np.concatenate([d[k] for d in ds], axis=-1)
                 for k in set(k for d in ds for k in d.keys())}
 
     def initialize(self):
         for c in self.consoles:
             c.initialize()
-
-    def update(self, iterations):
-        for c in self.consoles:
-            c.update(iterations)
 
     def isAdapting(self):
         return any(c.isAdapting() for c in self.consoles)
@@ -176,7 +174,7 @@ class Model:
 
     def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
                  file=None, encoding='utf-8', generate_data=True,
-                 progress_bar=True):
+                 progress_bar=True, threads=1):
         """
         Create a JAGS model and run adaptation steps.
 
@@ -225,12 +223,13 @@ class Model:
         load_module('basemod')
         load_module('bugs')
 
-        self.enable_progress_bar = progress_bar
+        self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=2.0)
         self.chains = int(chains)
         adapt = int(adapt)
 
         # Load the model
-        self.console = ConsoleMultiplexer(chains)
+        self.threads = min(self.chains, threads)
+        self.console = Console() if threads <= 1 else MultiConsole(chains)
         with model_path(file, code, encoding) as path:
             self.console.checkModel(path)
 
@@ -273,9 +272,41 @@ class Model:
             self.adapt(adapt)
 
     def _update(self, iterations, header):
-        progress = progress_bar(self.enable_progress_bar)
-        with progress(self.console.update, iterations, header=header) as fun:
-            stepwise(fun, iterations, .5)
+        method = self._update_sequential if self.threads <= 1 else self._update_parallel
+        with self.progress_bar(self.chains * iterations, header=header) as pb:
+            method(pb, iterations)
+
+    def _update_sequential(self, pb, iterations):
+        for steps in const_time_partition(iterations, pb.refresh_seconds):
+            self.console.update(steps)
+            pb.update(self.chains * steps)
+
+    def _update_parallel(self, pb, iterations):
+        from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+        from threading import Event
+
+        with ThreadPoolExecutor(self.threads) as executor:
+            # Event used to interrupt inner threads (which are
+            # non-interruptable by default).
+            interrupt = Event()
+
+            def update(c):
+                for steps in const_time_partition(iterations, pb.refresh_seconds):
+                    if interrupt.is_set():
+                        break
+                    c.update(steps)
+                    pb.update(steps)
+
+            fs = [executor.submit(update, c) for c in self.console.consoles]
+            try:
+                (done, not_done) = wait(fs, return_when=ALL_COMPLETED)
+                for d in done:
+                    d.result()
+                for d in not_done:
+                    assert(False)
+            except KeyboardInterrupt:
+                interrupt.set()
+                raise
 
     def update(self, iterations):
         """Updates the model for given number of iterations."""
