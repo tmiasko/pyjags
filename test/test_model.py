@@ -10,6 +10,7 @@
 # GNU General Public License for more details.
 
 import os.path
+import sys
 import unittest
 
 import numpy as np
@@ -232,16 +233,18 @@ class TestModel(unittest.TestCase):
             self.model(code, init=dict(x=1, y=2))
 
 
-class TestModelWithThreads(TestModel):
+if sys.version_info[0] > 2:
 
-    def model(self, *args, **kwargs):
-        return pyjags.Model(*args, **kwargs, threads=3)
+    class TestModelWithThreads(TestModel):
+
+        def model(self, *args, **kwargs):
+            return pyjags.Model(*args, threads=3, **kwargs)
 
 
-class TestModelWithChainsPerThread(TestModel):
+    class TestModelWithChainsPerThread(TestModel):
 
-    def model(self, *args, **kwargs):
-        return pyjags.Model(*args, **kwargs, threads=3, chains_per_thread=2)
+        def model(self, *args, **kwargs):
+            return pyjags.Model(*args, threads=3, chains_per_thread=2, **kwargs)
 
 if __name__ == '__main__':
     unittest.main()
