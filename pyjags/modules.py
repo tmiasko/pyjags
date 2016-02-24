@@ -15,11 +15,12 @@ import ctypes
 import ctypes.util
 import os
 import logging
+import sys
 
 from .console import Console
 
 logger = logging.getLogger('pyjags')
-
+modules_dir = None
 
 def version():
     """JAGS version as a tuple of ints.
@@ -79,7 +80,10 @@ def locate_modules_dir_using_shared_objects():
 
 def locate_modules_dir():
     logger.debug('Locating JAGS module directory.')
-    return locate_modules_dir_using_shared_objects()
+    if sys.platform.startswith('linux'):
+        return locate_modules_dir_using_shared_objects()
+    else:
+        return None
 
 
 def get_modules_dir():
@@ -88,15 +92,15 @@ def get_modules_dir():
     if modules_dir is None:
         modules_dir = locate_modules_dir()
     if modules_dir is None:
-        raise RuntimeError('Could not locate JAGS module directory.')
+        raise RuntimeError(
+            'Could not locate JAGS module directory. Use pyjags.set_modules_dir(path) to configure it manually.')
     return modules_dir
 
-modules_dir = None
 
-
-def set_modules_dir(modules_dir):
+def set_modules_dir(directory):
     """Set modules directory."""
-    get_modules_dir.dir = modules_dir
+    global modules_dir
+    modules_dir = directory
 
 
 def list_modules():
