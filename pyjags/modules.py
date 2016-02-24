@@ -32,40 +32,71 @@ def version():
     return tuple(map(int, v.split('.')))
 
 
-def list_shared_objects():
-    """Return paths of all currently loaded shared objects."""
+if sys.platform.startswith('darwin'):
 
-    class dl_phdr_info(ctypes.Structure):
-        _fields_ = [
-            ('addr', ctypes.c_void_p),
-            ('name', ctypes.c_char_p),
-            ('phdr', ctypes.c_void_p),
-            ('phnum', ctypes.c_uint16),
-        ]
+    def list_shared_objects():
+        """Return paths of all currently loaded shared objects."""
 
-    dl_iterate_phdr_callback = ctypes.CFUNCTYPE(
-            ctypes.c_int,
-            ctypes.POINTER(dl_phdr_info),
-            ctypes.POINTER(ctypes.c_size_t),
-            ctypes.c_void_p)
+        libc = ctypes.util.find_library('c')
+        libc = ctypes.cdll.LoadLibrary(libc)
 
-    libc = ctypes.util.find_library('c')
-    libc = ctypes.cdll.LoadLibrary(libc)
-    dl_iterate_phdr = libc.dl_iterate_phdr
-    dl_iterate_phdr.argtypes = [dl_iterate_phdr_callback, ctypes.c_void_p]
-    dl_iterate_phdr.restype = ctypes.c_int
+        dyld_image_count = libc._dyld_image_count
+        dyld_image_count.argtypes = []
+        dyld_image_count.restype = ctypes.c_uint32
 
-    libraries = []
+        dyld_image_name = libc._dyld_get_image_name
+        dyld_image_name.argtypes = [ctypes.c_uint32]
+        dyld_image_name.restype = ctypes.c_char_p
 
-    def callback(info, size, data):
-        path = info.contents.name
-        if path:
-            libraries.append(path)
-        return 0
+        libraries = []
 
-    dl_iterate_phdr(dl_iterate_phdr_callback(callback), None)
+        for index in range(dyld_image_count()):
+            libraries.append(dyld_image_name(index))
 
-    return list(map(getattr(os, 'fsdecode', lambda x: x), libraries))
+        return list(map(getattr(os, 'fsdecode', lambda x: x), libraries))
+
+elif sys.platform.startswith('linux'):
+
+    def list_shared_objects():
+        """Return paths of all currently loaded shared objects."""
+
+        class dl_phdr_info(ctypes.Structure):
+            _fields_ = [
+                ('addr', ctypes.c_void_p),
+                ('name', ctypes.c_char_p),
+                ('phdr', ctypes.c_void_p),
+                ('phnum', ctypes.c_uint16),
+            ]
+
+        dl_iterate_phdr_callback = ctypes.CFUNCTYPE(
+                ctypes.c_int,
+                ctypes.POINTER(dl_phdr_info),
+                ctypes.POINTER(ctypes.c_size_t),
+                ctypes.c_void_p)
+
+        libc = ctypes.util.find_library('c')
+        libc = ctypes.cdll.LoadLibrary(libc)
+        dl_iterate_phdr = libc.dl_iterate_phdr
+        dl_iterate_phdr.argtypes = [dl_iterate_phdr_callback, ctypes.c_void_p]
+        dl_iterate_phdr.restype = ctypes.c_int
+
+        libraries = []
+
+        def callback(info, size, data):
+            path = info.contents.name
+            if path:
+                libraries.append(path)
+            return 0
+
+        dl_iterate_phdr(dl_iterate_phdr_callback(callback), None)
+
+        return list(map(getattr(os, 'fsdecode', lambda x: x), libraries))
+
+else:
+
+    def list_shared_objects():
+        """Return paths of all currently loaded shared objects."""
+        return []
 
 
 def locate_modules_dir_using_shared_objects():
@@ -80,10 +111,7 @@ def locate_modules_dir_using_shared_objects():
 
 def locate_modules_dir():
     logger.debug('Locating JAGS module directory.')
-    if sys.platform.startswith('linux'):
-        return locate_modules_dir_using_shared_objects()
-    else:
-        return None
+    return locate_modules_dir_using_shared_objects()
 
 
 def get_modules_dir():

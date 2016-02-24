@@ -1,25 +1,33 @@
 language: python
-dist: trusty
-env:
-  - JAGS=3
-  - JAGS=4
-#addons:
-#  apt:
-#    packages:
-#    - jags
-python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - if [ "$JAGS" == "4" ]; then sudo add-apt-repository -y ppa:marutter/rrutter; fi
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq build-essential gcc-4.9 g++-4.9 jags
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 90
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 90
+matrix:
+  include:
+    - os: linux
+      python: 2.7
+      env: CC=gcc-5 CXX=g++-5
+    - os: linux
+      python: 3.3
+      env: CC=gcc-5 CXX=g++-5
+    - os: linux
+      python: 3.4
+      env: CC=gcc-5 CXX=g++-5
+    - os: linux
+      python: 3.5
+      env: CC=gcc-5 CXX=g++-5
+    - os: osx
+      language: generic
+      env: PYENV_VERSION=2.7.11
+    - os: osx
+      language: generic
+      env: PYENV_VERSION=3.5.1
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - jags
+    - gcc-5
+    - g++-5
 install:
-  - python setup.py install
+  - ./.travis/install.sh
 script:
-  - python setup.py test
+  - ./.travis/script.sh
