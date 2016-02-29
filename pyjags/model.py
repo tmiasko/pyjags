@@ -237,11 +237,11 @@ class Model:
         progress_bar : bool, optional
             If true, enables the progress bar.
         threads: int, 1 by default
-            A positive integer specifying number of threads used to sample from model.
-            Using more than one thread is experimental functionality.
+            A positive integer specifying number of threads used to sample from
+            model. Using more than one thread is experimental functionality.
         chains_per_thread: int, 1 by default
-            A positive integer specifying number of chains sampled in a single thread.
-            Used only when using more than one thread.
+            A positive integer specifying a maximum number of chains sampled in
+            a single thread. Takes effect only when using more than one thread.
         """
 
         # Ensure that default modules are loaded.
