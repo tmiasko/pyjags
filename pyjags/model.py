@@ -193,7 +193,8 @@ class Model:
 
     def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
                  file=None, encoding='utf-8', generate_data=True,
-                 progress_bar=True, threads=1, chains_per_thread=1):
+                 progress_bar=True, refresh_seconds=0.5, 
+                 threads=1, chains_per_thread=1):
         """
         Create a JAGS model and run adaptation steps.
 
@@ -249,7 +250,8 @@ class Model:
         load_module('bugs')
         load_module('lecuyer')
 
-        self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=0.5)
+        self.progress_bar = progress_bar_factory(progress_bar, 
+                                                 refresh_seconds=refresh_seconds)
         self.chains = chains
         self.threads = threads
         self.use_threads = self.threads > 1 and chains_per_thread < self.chains
