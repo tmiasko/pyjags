@@ -100,7 +100,7 @@ class ProgressBar(ProgressBarBase):
              'elapsed {self.elapsed}, ' \
              'remaining {self.remaining}'
 
-    def __init__(self, steps, header='', refresh_seconds=0.5,
+    def __init__(self, steps, header='', refresh_seconds=None,
                  file=sys.stdout, timer=default_timer):
         self.format = header + self.FORMAT
         self.file = file
@@ -108,7 +108,7 @@ class ProgressBar(ProgressBarBase):
         self.timer = timer
         self.start_seconds = self.timer()
         self.last_seconds = self.start_seconds
-        self.refresh_seconds = refresh_seconds
+        self.refresh_seconds = refresh_seconds or 0.5 if self.isatty else 5.0
         self.iterations_done = 0
         self.iterations_total = steps
         self.previous_length = 0
@@ -123,7 +123,7 @@ class ProgressBar(ProgressBarBase):
     def update(self, steps, force=False):
         self.iterations_done += steps
         seconds = self.timer()
-        if self.refresh_seconds < seconds - self.last_seconds or force:
+        if self.refresh_seconds <= seconds - self.last_seconds or force:
             self.last_seconds = seconds
             self.write(self.render())
 

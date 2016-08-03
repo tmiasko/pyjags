@@ -193,7 +193,7 @@ class Model:
 
     def __init__(self, code=None, data=None, init=None, chains=4, adapt=1000,
                  file=None, encoding='utf-8', generate_data=True,
-                 progress_bar=True, refresh_seconds=0.5, 
+                 progress_bar=True, refresh_seconds=None,
                  threads=1, chains_per_thread=1):
         """
         Create a JAGS model and run adaptation steps.
