@@ -233,6 +233,11 @@ class TestModel(unittest.TestCase):
             self.model(code, init=dict(x=1, y=2))
 
 
+class TestModelWithoutProgressBar(TestModel):
+    def model(self, *args, **kwargs):
+        return pyjags.Model(*args, progress_bar=False, **kwargs)
+
+
 if sys.version_info[0] > 2:
 
     class TestModelWithThreads(TestModel):
