@@ -250,8 +250,8 @@ class Model:
         load_module('bugs')
         load_module('lecuyer')
 
-        self.progress_bar = progress_bar_factory(progress_bar, 
-                                                 refresh_seconds=refresh_seconds)
+        self.refresh_seconds = refresh_seconds or 0.5 if sys.stdout.isatty() else 5.0
+        self.progress_bar = progress_bar_factory(progress_bar, refresh_seconds=self.refresh_seconds)
         self.chains = chains
         self.threads = threads
         self.use_threads = self.threads > 1 and chains_per_thread < self.chains
@@ -327,7 +327,7 @@ class Model:
             method(pb, iterations)
 
     def _update_sequential(self, progress, iterations):
-        for steps in const_time_partition(iterations, progress.refresh_seconds):
+        for steps in const_time_partition(iterations, self.refresh_seconds):
             self.console.update(steps)
             progress.update(self.chains * steps)
 
@@ -341,7 +341,7 @@ class Model:
             interrupt = Event()
 
             def update(console, chains):
-                for steps in const_time_partition(iterations, progress.refresh_seconds):
+                for steps in const_time_partition(iterations, self.refresh_seconds):
                     if interrupt.is_set():
                         break
                     console.update(steps)

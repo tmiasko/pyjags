@@ -78,7 +78,7 @@ def const_time_partition(iterations, period, timer=default_timer):
             next = left
 
 
-class ProgressBarBase:
+class EmptyProgressBar:
 
     def __init__(self, *args, **kwargs):
         pass
@@ -93,14 +93,14 @@ class ProgressBarBase:
         pass
 
 
-class ProgressBar(ProgressBarBase):
+class ProgressBar:
 
     FORMAT = 'iterations {self.iterations_done} ' \
              'of {self.iterations_total}, ' \
              'elapsed {self.elapsed}, ' \
              'remaining {self.remaining}'
 
-    def __init__(self, steps, header='', refresh_seconds=None,
+    def __init__(self, steps, header='', refresh_seconds=0.5,
                  file=sys.stdout, timer=default_timer):
         self.format = header + self.FORMAT
         self.file = file
@@ -108,10 +108,13 @@ class ProgressBar(ProgressBarBase):
         self.timer = timer
         self.start_seconds = self.timer()
         self.last_seconds = self.start_seconds
-        self.refresh_seconds = refresh_seconds or 0.5 if self.isatty else 5.0
+        self.refresh_seconds = refresh_seconds
         self.iterations_done = 0
         self.iterations_total = steps
         self.previous_length = 0
+
+    def __enter__(self):
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.update(0, force=True)
@@ -175,7 +178,7 @@ class ProgressBar(ProgressBarBase):
 
 
 def progress_bar_factory(enable, *args, **kwargs):
-    type = ProgressBar if enable else ProgressBarBase
+    type = ProgressBar if enable else EmptyProgressBar
     def factory(steps, *fargs, **fkwargs):
         all_args = fargs + args
         all_kwargs = dict(kwargs)
