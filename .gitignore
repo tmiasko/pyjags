@@ -2,3 +2,4 @@ build/
 dist/
 doc/_build
 *.pyc
+*.so
