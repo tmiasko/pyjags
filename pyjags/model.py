@@ -63,6 +63,17 @@ def dict_from_jags(src):
         dst[k] = v
     return dst
 
+def check_locale_compatibility():
+    """Checks that current locale is compatible with JAGS."""
+    import locale
+    import textwrap
+
+    if locale.localeconv().get('decimal_point') != '.':
+        msg = """\
+        JAGS requires locale that uses period as decimal point character. The standard C locale would be one possible choice. It can be configured as follows:
+        > import locale
+        > locale.setlocale(locale.LC_ALL, 'C')"""
+        raise ValueError(textwrap.dedent(msg))
 
 @contextlib.contextmanager
 def model_path(file=None, code=None, encoding='utf-8'):
@@ -244,6 +255,8 @@ class Model:
             A positive integer specifying a maximum number of chains sampled in
             a single thread. Takes effect only when using more than one thread.
         """
+
+        check_locale_compatibility()
 
         # Ensure that default modules are loaded.
         load_module('basemod')
