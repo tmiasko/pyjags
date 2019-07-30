@@ -67,8 +67,7 @@ py::object JagsError;
 // Converts numpy array to JAGS SArray.
 SArray to_jags(py::object src) {
   // Ensure we have a source numpy array.
-  const py::object src_array{PyArray_FromAny(src.ptr(), NULL, 1, 0, 0, 0),
-                             false};
+  const py::object src_array = py::reinterpret_steal<py::object>(PyArray_FromAny(src.ptr(), NULL, 1, 0, 0, 0));
   if (!src_array) {
     throw py::error_already_set();
   }
@@ -80,10 +79,9 @@ SArray to_jags(py::object src) {
   double *data = const_cast<double *>(dst.value().data());
 
   // Create numpy view onto destination SArray. Its elements are in fortran order.
-  py::object dst_array{
+  py::object dst_array = py::reinterpret_steal<py::object>(
       PyArray_New(&PyArray_Type, ndim, dims, NPY_DOUBLE, NULL, data, 0,
-                  NPY_ARRAY_F_CONTIGUOUS | NPY_ARRAY_WRITEABLE, NULL),
-      false};
+                  NPY_ARRAY_F_CONTIGUOUS | NPY_ARRAY_WRITEABLE, NULL));
   if (!dst_array) {
     throw py::error_already_set();
   }
@@ -101,15 +99,15 @@ py::array to_python(const SArray &sarray) {
   double *data = const_cast<double *>(sarray.value().data());
 
   // Creat a view over sarray data. Its elements are in fortran order.
-  py::object view{PyArray_New(&PyArray_Type, dims.size(), dims.data(),
-                              NPY_DOUBLE, NULL, data, 0, NPY_ARRAY_F_CONTIGUOUS,
-                              NULL),
-                  false};
+  py::object view = py::reinterpret_steal<py::object>(
+    PyArray_New(&PyArray_Type, dims.size(), dims.data(),
+                NPY_DOUBLE, NULL, data, 0, NPY_ARRAY_F_CONTIGUOUS,
+                NULL));
   if (!view) {
     throw py::error_already_set();
   }
 
-  return {PyArray_NewCopy((PyArrayObject *)view.ptr(), NPY_ANYORDER), false};
+  return py::reinterpret_steal<py::object>(PyArray_NewCopy((PyArrayObject *)view.ptr(), NPY_ANYORDER));
 }
 
 // Converts Python dictionary to JAGS map.
@@ -117,7 +115,7 @@ std::map<std::string, SArray> to_jags(py::dict dictionary) {
   std::map<std::string, SArray> result;
   for (const auto &item : dictionary) {
     const std::string key = item.first.cast<std::string>();
-    result.emplace(key, to_jags(py::object(item.second, true)));
+    result.emplace(key, to_jags(py::reinterpret_borrow<py::object>(item.second)));
   }
   return result;
 }
@@ -330,21 +328,27 @@ public:
     return result;
   }
 };
+
+bool import_numpy() {
+  import_array1(false);
+  return true;
 }
 
-PYBIND11_PLUGIN(console) {
-  py::module module("console");
+}
 
-  import_array1(nullptr);
+PYBIND11_MODULE(console, module) {
+  if (!import_numpy()) {
+    throw py::error_already_set();
+  }
 
   JagsError =
-      py::object(PyErr_NewException("console.JagsError", NULL, NULL), true);
+      py::reinterpret_borrow<py::object>(PyErr_NewException("console.JagsError", NULL, NULL));
   if (!JagsError) {
-    return nullptr;
+    throw py::error_already_set();
   }
 
   if (PyModule_AddObject(module.ptr(), "JagsError", JagsError.ptr())) {
-    return nullptr;
+    throw py::error_already_set();
   }
 
   if (std::strcmp(PYJAGS_JAGS_VERSION, jags_version()) != 0) {
@@ -352,6 +356,7 @@ PYBIND11_PLUGIN(console) {
                    "Incompatible JAGS version. "
                    "Compiled against version %s, but using version %s.",
                    PYJAGS_JAGS_VERSION, jags_version());
+      throw py::error_already_set();
   }
 
   py::enum_<DumpType>(module, "DumpType",
@@ -426,7 +431,5 @@ PYBIND11_PLUGIN(console) {
                   "Return version of JAGS library.")
       .def_static("parallel_rngs", &JagsConsole::parallel_rngs,
                   "RNGs for execution in parallel.");
-
-  return module.ptr();
 }
 
