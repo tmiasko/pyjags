@@ -39,7 +39,7 @@ def add_pkg_config(ext, package):
                 getattr(ext, attr).append(flag[2:])
 
         args = ['pkg-config', '--modversion', package]
-        output = subprocess.check_output(args)
+        output = subprocess.check_output(args, universal_newlines=True)
         return output.strip()
     except Exception as err:
         print("Error while executing pkg-config: {}".format(err))
