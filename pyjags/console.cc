@@ -10,10 +10,10 @@
 // GNU General Public License for more details.
 
 #include <Python.h>
+#include <numpy/arrayobject.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <numpy/arrayobject.h>
 
 #include <Console.h>
 #include <model/Model.h>
@@ -67,7 +67,8 @@ py::object JagsError;
 // Converts numpy array to JAGS SArray.
 SArray to_jags(py::object src) {
   // Ensure we have a source numpy array.
-  const py::object src_array = py::reinterpret_steal<py::object>(PyArray_FromAny(src.ptr(), NULL, 1, 0, 0, 0));
+  const py::object src_array = py::reinterpret_steal<py::object>(
+      PyArray_FromAny(src.ptr(), NULL, 1, 0, 0, 0));
   if (!src_array) {
     throw py::error_already_set();
   }
@@ -78,7 +79,8 @@ SArray to_jags(py::object src) {
   SArray dst{{dims, dims + ndim}};
   double *data = const_cast<double *>(dst.value().data());
 
-  // Create numpy view onto destination SArray. Its elements are in fortran order.
+  // Create numpy view onto destination SArray. Its elements are in fortran
+  // order.
   py::object dst_array = py::reinterpret_steal<py::object>(
       PyArray_New(&PyArray_Type, ndim, dims, NPY_DOUBLE, NULL, data, 0,
                   NPY_ARRAY_F_CONTIGUOUS | NPY_ARRAY_WRITEABLE, NULL));
@@ -100,14 +102,14 @@ py::array to_python(const SArray &sarray) {
 
   // Creat a view over sarray data. Its elements are in fortran order.
   py::object view = py::reinterpret_steal<py::object>(
-    PyArray_New(&PyArray_Type, dims.size(), dims.data(),
-                NPY_DOUBLE, NULL, data, 0, NPY_ARRAY_F_CONTIGUOUS,
-                NULL));
+      PyArray_New(&PyArray_Type, dims.size(), dims.data(), NPY_DOUBLE, NULL,
+                  data, 0, NPY_ARRAY_F_CONTIGUOUS, NULL));
   if (!view) {
     throw py::error_already_set();
   }
 
-  return py::reinterpret_steal<py::object>(PyArray_NewCopy((PyArrayObject *)view.ptr(), NPY_ANYORDER));
+  return py::reinterpret_steal<py::object>(
+      PyArray_NewCopy((PyArrayObject *)view.ptr(), NPY_ANYORDER));
 }
 
 // Converts Python dictionary to JAGS map.
@@ -115,7 +117,8 @@ std::map<std::string, SArray> to_jags(py::dict dictionary) {
   std::map<std::string, SArray> result;
   for (const auto &item : dictionary) {
     const std::string key = item.first.cast<std::string>();
-    result.emplace(key, to_jags(py::reinterpret_borrow<py::object>(item.second)));
+    result.emplace(key,
+                   to_jags(py::reinterpret_borrow<py::object>(item.second)));
   }
   return result;
 }
@@ -252,16 +255,14 @@ public:
 
   static void loadModule(const std::string &name) {
     if (!Console::loadModule(name)) {
-      PyErr_Format(JagsError.ptr(), "Error loading module: %s",
-                   name.c_str());
+      PyErr_Format(JagsError.ptr(), "Error loading module: %s", name.c_str());
       throw py::error_already_set();
     }
   }
 
   static void unloadModule(const std::string &name) {
     if (!Console::unloadModule(name)) {
-      PyErr_Format(JagsError.ptr(), "Error unloading module: %s",
-                   name.c_str());
+      PyErr_Format(JagsError.ptr(), "Error unloading module: %s", name.c_str());
       throw py::error_already_set();
     }
   }
@@ -334,15 +335,15 @@ bool import_numpy() {
   return true;
 }
 
-}
+} // namespace
 
 PYBIND11_MODULE(console, module) {
   if (!import_numpy()) {
     throw py::error_already_set();
   }
 
-  JagsError =
-      py::reinterpret_borrow<py::object>(PyErr_NewException("console.JagsError", NULL, NULL));
+  JagsError = py::reinterpret_borrow<py::object>(
+      PyErr_NewException("console.JagsError", NULL, NULL));
   if (!JagsError) {
     throw py::error_already_set();
   }
@@ -352,11 +353,11 @@ PYBIND11_MODULE(console, module) {
   }
 
   if (std::strcmp(PYJAGS_JAGS_VERSION, jags_version()) != 0) {
-      PyErr_Format(JagsError.ptr(),
-                   "Incompatible JAGS version. "
-                   "Compiled against version %s, but using version %s.",
-                   PYJAGS_JAGS_VERSION, jags_version());
-      throw py::error_already_set();
+    PyErr_Format(JagsError.ptr(),
+                 "Incompatible JAGS version. "
+                 "Compiled against version %s, but using version %s.",
+                 PYJAGS_JAGS_VERSION, jags_version());
+    throw py::error_already_set();
   }
 
   py::enum_<DumpType>(module, "DumpType",
@@ -432,4 +433,3 @@ PYBIND11_MODULE(console, module) {
       .def_static("parallel_rngs", &JagsConsole::parallel_rngs,
                   "RNGs for execution in parallel.");
 }
-
