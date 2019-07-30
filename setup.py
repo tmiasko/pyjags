@@ -62,7 +62,6 @@ def add_numpy(ext):
 
 def add_pybind11(ext):
     ext.include_dirs.append('pybind11/include')
-    ext.extra_compile_args.append('-std=c++11')
 
 
 if __name__ == '__main__':
