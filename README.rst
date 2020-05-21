@@ -1,6 +1,8 @@
 PyJAGS: The Python Interface to JAGS
 ====================================
 
+**Note: Project moved to https://github.com/michaelnowotny/pyjags**
+
 PyJAGS provides a Python interface to JAGS, a program for analysis of Bayesian
 hierarchical models using Markov Chain Monte Carlo (MCMC) simulation.
 
